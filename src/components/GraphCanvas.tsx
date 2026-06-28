@@ -76,6 +76,13 @@ export default function GraphCanvas({ mode, setMode, edgeSource, setEdgeSource }
     setEditingEdge,
   } = useGraphStore();
 
+  const modeRef = useRef(mode);
+  const edgeSourceRef = useRef(edgeSource);
+  const projectRef = useRef(project);
+  modeRef.current = mode;
+  edgeSourceRef.current = edgeSource;
+  projectRef.current = project;
+
   // Initialize Cytoscape once
   useEffect(() => {
     if (!containerRef.current) return;
@@ -92,13 +99,14 @@ export default function GraphCanvas({ mode, setMode, edgeSource, setEdgeSource }
       const node = evt.target as cytoscape.NodeSingular;
       const nodeId = node.id();
 
-      if (mode === 'add-edge') {
-        if (!edgeSource) {
+      if (modeRef.current === 'add-edge') {
+        const src = edgeSourceRef.current;
+        if (!src) {
           setEdgeSource(nodeId);
           return;
         }
-        if (edgeSource !== nodeId) {
-          addEdge({ source: edgeSource, target: nodeId, direction: 'forward', type: 'default', brief: '', detail: '', table: '' });
+        if (src !== nodeId) {
+          addEdge({ source: src, target: nodeId, direction: 'forward', type: 'default', brief: '', detail: '', table: '' });
         }
         setEdgeSource(null);
         setMode('select');
@@ -115,7 +123,7 @@ export default function GraphCanvas({ mode, setMode, edgeSource, setEdgeSource }
     cy.on('tap', 'node.layer', (evt) => {
       const layerNode = evt.target as cytoscape.NodeSingular;
       const layerId = layerNode.id();
-      if (mode === 'add-node') {
+      if (modeRef.current === 'add-node') {
         const pos = evt.position;
         addNode(layerId, pos.x, pos.y);
         setMode('select');
@@ -140,7 +148,7 @@ export default function GraphCanvas({ mode, setMode, edgeSource, setEdgeSource }
         setSelectedNode(null);
         setSelectedEdge(null);
         closeDetailPopup();
-        if (mode !== 'add-edge') {
+        if (modeRef.current !== 'add-edge') {
           setEdgeSource(null);
         }
       }
@@ -164,7 +172,7 @@ export default function GraphCanvas({ mode, setMode, edgeSource, setEdgeSource }
       const start = dragStartRef.current[node.id()];
       if (!start) return;
       const end = node.position();
-      const layer = project.layers.find((l) => l.id === node.id());
+      const layer = projectRef.current.layers.find((l) => l.id === node.id());
       if (layer) {
         moveLayer(node.id(), (layer.x ?? 0) + (end.x - start.x), (layer.y ?? 0) + (end.y - start.y));
       }
