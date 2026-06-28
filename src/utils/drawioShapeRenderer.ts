@@ -107,7 +107,7 @@ function buildSvg(
 
   if (def.name === 'rectangle') {
     (shape as any).isRounded = true;
-    (shape.style as any)[mxConstants.STYLE_ARCSIZE] = 20;
+    (shape.style as any)[mxConstants.STYLE_ARCSIZE] = 50;
   }
 
   const svgDoc = mxUtils.createXmlDocument();

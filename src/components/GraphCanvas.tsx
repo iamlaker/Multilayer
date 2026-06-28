@@ -1,7 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import cytoscape from 'cytoscape';
 import { useGraphStore } from '../store/graphStore';
 import { CYTOSCAPE_STYLES } from '../utils/cytoscapeStyle';
+import {
+  NODE_BACKGROUND_PALETTE,
+  NODE_BORDER_PALETTE,
+  pickByIndex,
+} from '../utils/styleDefaults';
+import ResizeHandles from './ResizeHandles';
 import type { EdgeData, ProjectData } from '../model/types';
 
 type Mode = 'select' | 'add-node' | 'add-edge';
@@ -27,10 +33,24 @@ function buildElements(
   if (viewMode === 'layered') {
     for (const layer of visibleLayers) {
       elements.push({
-        data: { id: layer.id, label: layer.name, color: layer.color || '#cbd5e1' },
+        data: {
+          id: layer.id,
+          label: layer.name,
+          color: layer.color || '#cbd5e1',
+          width: layer.width,
+          height: layer.height,
+          fontColor: layer.fontColor,
+          fontSize: layer.fontSize,
+          fontFamily: layer.fontFamily,
+          fontWeight: layer.fontWeight,
+          borderColor: layer.borderColor,
+          borderStyle: layer.borderStyle,
+        },
         classes: 'layer',
       });
-      for (const node of layer.nodes) {
+      for (const [nodeIndex, node] of layer.nodes.entries()) {
+        const backgroundColor = node.backgroundColor || pickByIndex(NODE_BACKGROUND_PALETTE, nodeIndex);
+        const borderColor = node.borderColor || pickByIndex(NODE_BORDER_PALETTE, nodeIndex);
         elements.push({
           data: {
             id: node.id,
@@ -40,9 +60,13 @@ function buildElements(
             shape: node.shape,
             width: node.width,
             height: node.height,
-            backgroundColor: node.backgroundColor,
-            borderColor: node.borderColor,
+            backgroundColor,
+            borderColor,
             borderStyle: node.borderStyle,
+            fontColor: node.fontColor,
+            fontSize: node.fontSize,
+            fontFamily: node.fontFamily,
+            fontWeight: node.fontWeight,
           },
           position: { x: (layer.x ?? 0) + node.x, y: (layer.y ?? 0) + node.y },
           classes: 'indicator',
@@ -59,7 +83,9 @@ function buildElements(
   } else {
     // Overview mode: flat graph of all visible indicators with cross-layer edges
     for (const layer of visibleLayers) {
-      for (const node of layer.nodes) {
+      for (const [nodeIndex, node] of layer.nodes.entries()) {
+        const backgroundColor = node.backgroundColor || pickByIndex(NODE_BACKGROUND_PALETTE, nodeIndex);
+        const borderColor = node.borderColor || pickByIndex(NODE_BORDER_PALETTE, nodeIndex);
         elements.push({
           data: {
             id: node.id,
@@ -70,9 +96,13 @@ function buildElements(
             shape: node.shape,
             width: node.width,
             height: node.height,
-            backgroundColor: node.backgroundColor,
-            borderColor: node.borderColor,
+            backgroundColor,
+            borderColor,
             borderStyle: node.borderStyle,
+            fontColor: node.fontColor,
+            fontSize: node.fontSize,
+            fontFamily: node.fontFamily,
+            fontWeight: node.fontWeight,
           },
           classes: 'indicator overview',
         });
@@ -105,24 +135,40 @@ function getAllEdges(project: ProjectData): EdgeData[] {
 export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
+  const [cyInstance, setCyInstance] = useState<cytoscape.Core | null>(null);
+  const [selectionRect, setSelectionRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const selectStartRef = useRef<{ x: number; y: number } | null>(null);
+  const selectingRef = useRef(false);
   const dragStartRef = useRef<Record<string, cytoscape.Position>>({});
   const drawSourceRef = useRef<string | null>(null);
+  const multiDragRef = useRef<{ grabbedId: string; startPositions: Record<string, cytoscape.Position> } | null>(null);
 
   const {
     project,
     hiddenLayerIds,
     selectedNodeId,
+    selectedEdgeId,
+    selectedLayerId,
+    selectedNodeIds,
+    selectedEdgeIds,
     isEditMode,
     viewMode,
     searchQuery,
     setSelectedNode,
+    setSelectedLayer,
     setSelectedEdge,
+    toggleSelectedNode,
+    toggleSelectedEdge,
+    clearMultiSelection,
     setDetailPopup,
     closeDetailPopup,
     moveNode,
     moveLayer,
     addNode,
     addEdge,
+    deleteNode,
+    deleteEdge,
+    deleteLayer,
     selectedShape,
     setEditingNode,
     setEditingEdge,
@@ -130,6 +176,11 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
     undo,
     redo,
   } = useGraphStore();
+
+  const selectedNodeIdsRef = useRef<string[]>(selectedNodeIds);
+  const moveNodeRef = useRef(moveNode);
+  selectedNodeIdsRef.current = selectedNodeIds;
+  moveNodeRef.current = moveNode;
 
   const modeRef = useRef(mode);
   const isEditModeRef = useRef(isEditMode);
@@ -159,13 +210,18 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
       wheelSensitivity: 0.3,
     });
     cyRef.current = cy;
+    setCyInstance(cy);
 
     cy.on('tap', 'node.indicator', (evt) => {
       if (drawSourceRef.current) return;
       const nodeId = (evt.target as cytoscape.NodeSingular).id();
-      if (selectedNodeId === nodeId) {
+      const isMulti = (evt.originalEvent as MouseEvent)?.ctrlKey || (evt.originalEvent as MouseEvent)?.metaKey;
+      if (isMulti) {
+        toggleSelectedNode(nodeId);
+      } else if (selectedNodeId === nodeId && selectedNodeIds.length === 0) {
         setSelectedNode(null);
       } else {
+        clearMultiSelection();
         setSelectedNode(nodeId);
       }
       if (viewModeRef.current === 'overview') {
@@ -177,19 +233,34 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
     cy.on('tap', 'node.layer', (evt) => {
       if (drawSourceRef.current) return;
       if (viewModeRef.current === 'overview') return;
-      if (!isEditModeRef.current || modeRef.current !== 'add-node') return;
       const layerId = (evt.target as cytoscape.NodeSingular).id();
-      const pos = evt.position;
-      const shape = selectedShapeRef.current || 'roundrectangle';
-      addNode(layerId, pos.x, pos.y, shape);
-      setMode('select');
+      if (isEditModeRef.current && modeRef.current === 'add-node') {
+        const pos = evt.position;
+        const shape = selectedShapeRef.current || 'roundrectangle';
+        const newNodeId = addNode(layerId, pos.x, pos.y, shape);
+        setEditingNode(newNodeId);
+        setMode('select');
+        return;
+      }
+      if (selectedLayerId === layerId) {
+        setSelectedLayer(null);
+      } else {
+        clearMultiSelection();
+        setSelectedLayer(layerId);
+      }
     });
 
     cy.on('tap', 'edge', (evt) => {
       if (drawSourceRef.current) return;
       const edge = evt.target as cytoscape.EdgeSingular;
       const edgeId = edge.id();
-      setSelectedEdge(edgeId);
+      const isMulti = (evt.originalEvent as MouseEvent)?.ctrlKey || (evt.originalEvent as MouseEvent)?.metaKey;
+      if (isMulti) {
+        toggleSelectedEdge(edgeId);
+      } else {
+        clearMultiSelection();
+        setSelectedEdge(edgeId);
+      }
       const rendered = evt.renderedPosition;
       const rect = containerRef.current?.getBoundingClientRect();
       setDetailPopup({
@@ -203,7 +274,9 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
       if (drawSourceRef.current) return;
       if (evt.target === cy) {
         setSelectedNode(null);
+        setSelectedLayer(null);
         setSelectedEdge(null);
+        clearMultiSelection();
         closeDetailPopup();
       }
     });
@@ -253,7 +326,7 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
       if (!drawSourceRef.current) return;
       const targetId = (evt.target as cytoscape.NodeSingular).id();
       if (targetId !== drawSourceRef.current) {
-        addEdge({
+        const newEdgeId = addEdge({
           source: drawSourceRef.current,
           target: targetId,
           direction: 'forward',
@@ -262,6 +335,7 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
           detail: '',
           table: '',
         });
+        setEditingEdge(newEdgeId);
       }
       clearTempEdge(cy);
       setMode('select');
@@ -273,6 +347,85 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
         clearTempEdge(cy);
         setMode('select');
       }
+    });
+
+    // Shift / Ctrl drag box selection
+    cy.on('mousedown', (evt) => {
+      if (viewModeRef.current === 'overview') return;
+      if (!isEditModeRef.current || modeRef.current !== 'select') return;
+      if (evt.target !== cy) return;
+      const e = evt.originalEvent as MouseEvent;
+      if (!e.shiftKey && !e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const container = cy.container();
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const start = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      selectStartRef.current = start;
+      selectingRef.current = true;
+      cy.userPanningEnabled(false);
+      cy.userZoomingEnabled(false);
+      setSelectionRect({ x: start.x, y: start.y, w: 0, h: 0 });
+
+      const onMouseMove = (ev: MouseEvent) => {
+        if (!selectingRef.current || !selectStartRef.current) return;
+        const x = ev.clientX - rect.left;
+        const y = ev.clientY - rect.top;
+        const sx = selectStartRef.current.x;
+        const sy = selectStartRef.current.y;
+        setSelectionRect({ x: Math.min(sx, x), y: Math.min(sy, y), w: Math.abs(x - sx), h: Math.abs(y - sy) });
+      };
+
+      const onMouseUp = (ev: MouseEvent) => {
+        if (!selectingRef.current) return;
+        selectingRef.current = false;
+        const sx = selectStartRef.current?.x ?? 0;
+        const sy = selectStartRef.current?.y ?? 0;
+        selectStartRef.current = null;
+        const x = ev.clientX - rect.left;
+        const y = ev.clientY - rect.top;
+        const selX1 = Math.min(sx, x);
+        const selY1 = Math.min(sy, y);
+        const selX2 = Math.max(sx, x);
+        const selY2 = Math.max(sy, y);
+        const pan = cy.pan();
+        const zoom = cy.zoom();
+        const modelX1 = (selX1 - pan.x) / zoom;
+        const modelY1 = (selY1 - pan.y) / zoom;
+        const modelX2 = (selX2 - pan.x) / zoom;
+        const modelY2 = (selY2 - pan.y) / zoom;
+        const intersecting = cy
+          .nodes('.indicator')
+          .filter((n) => {
+            const bb = n.boundingBox({ includeLabels: false, includeOverlays: false });
+            return bb.x1 < modelX2 && bb.x2 > modelX1 && bb.y1 < modelY2 && bb.y2 > modelY1;
+          })
+          .map((n) => n.id());
+        if (intersecting.length > 0) {
+          if (ev.ctrlKey || ev.metaKey) {
+            for (const id of intersecting) toggleSelectedNode(id);
+          } else {
+            clearMultiSelection();
+            for (const id of intersecting) toggleSelectedNode(id);
+          }
+          setSelectedNode(null);
+          setSelectedEdge(null);
+          setSelectedLayer(null);
+        } else if (!ev.ctrlKey && !ev.metaKey) {
+          clearMultiSelection();
+          setSelectedNode(null);
+          setSelectedEdge(null);
+          setSelectedLayer(null);
+        }
+        setSelectionRect(null);
+        cy.userPanningEnabled(true);
+        cy.userZoomingEnabled(true);
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      };
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
     });
 
     // Layer / node dragging (allowed in both edit and preview modes, layered view only)
@@ -296,10 +449,53 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
       delete dragStartRef.current[node.id()];
     });
 
+    cy.on('grab', 'node.indicator', (evt) => {
+      if (viewModeRef.current === 'overview') return;
+      if (modeRef.current !== 'select') return;
+      const node = evt.target as cytoscape.NodeSingular;
+      const ids = selectedNodeIdsRef.current;
+      if (ids.length > 1 && ids.includes(node.id())) {
+        const startPositions: Record<string, cytoscape.Position> = {};
+        for (const id of ids) {
+          const n = cy.getElementById(id);
+          if (n.length > 0) startPositions[id] = { ...n.position() };
+        }
+        multiDragRef.current = { grabbedId: node.id(), startPositions };
+      }
+    });
+
+    cy.on('drag', 'node.indicator', (evt) => {
+      if (!multiDragRef.current) return;
+      const node = evt.target as cytoscape.NodeSingular;
+      if (node.id() !== multiDragRef.current.grabbedId) return;
+      const start = multiDragRef.current.startPositions[node.id()];
+      if (!start) return;
+      const current = node.position();
+      const dx = current.x - start.x;
+      const dy = current.y - start.y;
+      for (const [id, pos] of Object.entries(multiDragRef.current.startPositions)) {
+        const n = cy.getElementById(id);
+        if (n.length > 0) n.position({ x: pos.x + dx, y: pos.y + dy });
+      }
+    });
+
     cy.on('dragfree', 'node.indicator', (evt) => {
       if (viewModeRef.current === 'overview') return;
       if (modeRef.current !== 'select') return;
       const node = evt.target as cytoscape.NodeSingular;
+      if (multiDragRef.current && node.id() === multiDragRef.current.grabbedId) {
+        const start = multiDragRef.current.startPositions[node.id()];
+        if (start) {
+          const current = node.position();
+          const dx = current.x - start.x;
+          const dy = current.y - start.y;
+          for (const [id, pos] of Object.entries(multiDragRef.current.startPositions)) {
+            moveNodeRef.current(id, pos.x + dx, pos.y + dy);
+          }
+        }
+        multiDragRef.current = null;
+        return;
+      }
       const pos = node.position();
       moveNode(node.id(), pos.x, pos.y);
     });
@@ -309,7 +505,9 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
     if (!container) return;
     const handleDragOver = (e: DragEvent) => {
       e.preventDefault();
-      e.dataTransfer && (e.dataTransfer.dropEffect = 'copy');
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'copy';
+      }
     };
     const handleDrop = (e: DragEvent) => {
       e.preventDefault();
@@ -327,7 +525,8 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
         })
         .first();
       if (layerNode.length === 0) return;
-      addNode(layerNode.id(), x, y, shape);
+      const droppedNodeId = addNode(layerNode.id(), x, y, shape);
+      setEditingNode(droppedNodeId);
     };
     container.addEventListener('dragover', handleDragOver);
     container.addEventListener('drop', handleDrop);
@@ -347,6 +546,7 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
       cy.destroy();
       cyRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update node / layer grabbability based on edit mode, tool mode and view mode
@@ -355,10 +555,12 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
     if (!cy) return;
     const canDrag = mode === 'select' && viewMode === 'layered';
     cy.nodes('.indicator').forEach((n) => {
-      canDrag ? n.grabify() : n.ungrabify();
+      if (canDrag) n.grabify();
+      else n.ungrabify();
     });
     cy.nodes('.layer').forEach((n) => {
-      canDrag ? n.grabify() : n.ungrabify();
+      if (canDrag) n.grabify();
+      else n.ungrabify();
     });
   }, [isEditMode, mode, viewMode]);
 
@@ -379,7 +581,39 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isTyping =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable;
+      if (isTyping) return;
+
       const isCtrl = e.ctrlKey || e.metaKey;
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        if (selectedNodeIds.length > 0) {
+          for (const id of selectedNodeIds) deleteNode(id);
+          clearMultiSelection();
+          setSelectedNode(null);
+        } else if (selectedEdgeIds.length > 0) {
+          for (const id of selectedEdgeIds) deleteEdge(id);
+          clearMultiSelection();
+          setSelectedEdge(null);
+        } else if (selectedNodeId) {
+          deleteNode(selectedNodeId);
+          setSelectedNode(null);
+        } else if (selectedEdgeId) {
+          deleteEdge(selectedEdgeId);
+          setSelectedEdge(null);
+        } else if (selectedLayerId) {
+          if (confirm(`确定删除图层？其中的指标和连线也会被删除。`)) {
+            deleteLayer(selectedLayerId);
+            setSelectedLayer(null);
+          }
+        }
+        return;
+      }
       if (!isCtrl) return;
       if (e.key === 'z' || e.key === 'Z') {
         e.preventDefault();
@@ -392,7 +626,7 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [undo, redo]);
+  }, [undo, redo, deleteNode, deleteEdge, deleteLayer, selectedNodeId, selectedEdgeId, selectedLayerId, selectedNodeIds, selectedEdgeIds, setSelectedNode, setSelectedEdge, setSelectedLayer, clearMultiSelection]);
 
   // Apply highlight classes (selection + search)
   useEffect(() => {
@@ -416,6 +650,12 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
             activeNodeIds.add(edge.target);
           }
         }
+      }
+      for (const id of selectedNodeIds) {
+        activeNodeIds.add(id);
+      }
+      for (const id of selectedEdgeIds) {
+        activeEdgeIds.add(id);
       }
 
       if (searchQuery) {
@@ -441,7 +681,7 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
 
       cy.nodes('.indicator').forEach((n) => {
         const id = n.id();
-        if (id === selectedNodeId) {
+        if (id === selectedNodeId || selectedNodeIds.includes(id)) {
           n.addClass('selected');
         } else if (!activeNodeIds.has(id)) {
           n.addClass('dimmed');
@@ -482,7 +722,7 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
         }
       }
     });
-  }, [selectedNodeId, searchQuery, project, hiddenLayerIds, viewMode]);
+  }, [selectedNodeId, selectedNodeIds, selectedEdgeIds, searchQuery, project, hiddenLayerIds, viewMode]);
 
   const cursorClass = viewMode === 'overview'
     ? 'cursor-default'
@@ -492,5 +732,27 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
     ? 'cursor-crosshair'
     : 'cursor-grab';
 
-  return <div ref={containerRef} className={`flex-1 relative bg-gray-100 ${cursorClass}`} />;
+  return (
+    <div ref={containerRef} className={`flex-1 relative bg-gray-100 ${cursorClass}`}>
+      {cyInstance && (
+        <ResizeHandles
+          cy={cyInstance}
+          selectedNodeId={selectedNodeId}
+          selectedLayerId={selectedLayerId}
+          selectedNodeIds={selectedNodeIds}
+        />
+      )}
+      {selectionRect && (
+        <div
+          className="absolute pointer-events-none border border-blue-500 bg-blue-500/10 z-20"
+          style={{
+            left: selectionRect.x,
+            top: selectionRect.y,
+            width: selectionRect.w,
+            height: selectionRect.h,
+          }}
+        />
+      )}
+    </div>
+  );
 }

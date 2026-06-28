@@ -27,8 +27,16 @@ layers:
     name: "战略目标层"            # 图层名称，必填
     description: "..."           # 图层描述，可选
     color: "#dbeafe"             # 图层主题色，可选（HTML 颜色值）
+    borderStyle: "solid"          # 边框样式：solid / dashed / dotted，可选
+    borderColor: "#93c5fd"        # 边框颜色，可选
     x: 50                         # 图层原点 X，可选，默认 0
     y: 50                         # 图层原点 Y，可选，默认 0
+    width: 400                    # 图层宽度，可选
+    height: 300                   # 图层高度，可选
+    fontColor: "#1f2937"          # 图层标题字体颜色，可选
+    fontSize: 16                  # 图层标题字号，可选
+    fontFamily: "Microsoft YaHei, sans-serif"  # 图层标题字体，可选
+    fontWeight: "bold"            # 图层标题字重，可选
     nodes: []                     # 指标节点数组，必填
     edges: []                     # 层内连线数组，必填
 ```
@@ -42,9 +50,21 @@ nodes:
     type: "indicator"            # 指标类型，可选，默认 indicator
     x: 100                        # 相对图层原点的 X 坐标，可选，默认 0
     y: 80                         # 相对图层原点的 Y 坐标，可选，默认 0
+    shape: "roundrectangle"      # 形状，可选，默认 roundrectangle
+    width: 120                    # 宽度（像素），可选
+    height: 60                    # 高度（像素），可选
+    borderStyle: "solid"          # 边框样式：solid / dashed / dotted，可选
+    borderColor: "#3b82f6"        # 边框颜色，可选
+    backgroundColor: "#dbeafe"    # 背景颜色，可选
+    fontColor: "#1f2937"          # 字体颜色，可选
+    fontSize: 14                  # 字号，可选
+    fontFamily: "Microsoft YaHei, sans-serif"  # 字体，可选
+    fontWeight: "bold"            # 字重：normal / bold / lighter，可选
 ```
 
 > **重要**：指标使用全局唯一 ID 标识，`name` 仅用于展示。不同图层允许出现同名指标，但 ID 必须不同。
+>
+> 常用 `shape` 取值：`roundrectangle`（圆角矩形）、`rectangle`（矩形）、`ellipse`（椭圆）、`circle`（圆形）、`triangle`（三角形）、`diamond`（菱形）、`pentagon`（五边形）、`hexagon`（六边形）、`octagon`（八边形）、`star`（星形）、`vee`（V 形）、`rhomboid`（平行四边形）。
 
 ## 五、连线（Edge）
 
@@ -58,8 +78,10 @@ edges:
     direction: "forward"         # 箭头方向：forward / backward / bidirectional
     type: "drives"               # 连线类型，自由字符串
     brief: "满意度提升 → 投诉减少"    # 简要表述，点击高亮时显示在连线上
-    detail: "客户满意度每提高 1 分..."  # 复杂表述，点击连线后弹窗展示
-    table: "| 指标 | 数值 |\n|---|---|\n| ... | ... |"   # 关联表格，Markdown 表格格式
+    detail: "客户满意度每提高 1 分..."  # 复杂表述，点击连线后弹窗展示（可编辑）
+    table: "| 指标 | 数值 |\n|---|---|\n| ... | ... |"   # 关联表格，Markdown 表格格式（可编辑）
+    lineStyle: "solid"            # 连线样式：solid / dashed / dotted，可选
+    lineColor: "#6b7280"          # 连线颜色，可选
 ```
 
 ### 5.1 方向说明
@@ -108,6 +130,7 @@ crossEdges:
 3. `direction` 必须是 `forward`、`backward`、`bidirectional` 之一。
 4. `x`、`y` 应为数值类型。
 5. `table` 如使用 Markdown 表格，应包含表头分隔行 `|---|---|`。
+6. 样式字段（`shape`、`borderStyle`、`borderColor`、`backgroundColor`、`fontColor`、`fontSize`、`fontFamily`、`fontWeight`、`lineStyle`、`lineColor`）均为可选，留空时由系统使用默认值。
 
 ## 八、AI 生成建议
 

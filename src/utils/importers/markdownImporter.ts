@@ -99,7 +99,7 @@ function parseMermaid(text: string): ImportResult {
   };
 
   const nodeDefRegex =
-    /(\b\w+\b)\s*(?:\[\s*"([^"]+)"\s*\]|\[\s*([^\[\]]+?)\s*\]|\(\s*([^()]+?)\s*\)|\{\s*([^}]+?)\s*\}|\[\/\s*([^\]\/]+?)\s*\/\])/g;
+    /(\b\w+\b)\s*(?:\[\s*"([^"]+)"\s*\]|\[\s*([^[\]]+?)\s*\]|\(\s*([^()]+?)\s*\)|\{\s*([^}]+?)\s*\}|\[\/\s*([^]\/]+?)\s*\/\])/g;
   let m;
   while ((m = nodeDefRegex.exec(text)) !== null) {
     const id = m[1];
@@ -203,7 +203,8 @@ function parseStructuredMarkdown(text: string): ImportResult | null {
       currentNode = null;
       const { rows, nextIndex } = parseMarkdownTable(lines, i + 1);
       i = nextIndex - 1;
-      for (const row of rows) {
+      // First row is the table header; skip it.
+      for (const row of rows.slice(1)) {
         if (row.length >= 4) {
           crossEdges.push({
             sourceLayer: row[0] || '',

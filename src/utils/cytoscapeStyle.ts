@@ -3,6 +3,33 @@ import { isDrawioShape, renderDrawioShape } from './drawioShapeRenderer';
 
 const DEFAULT_SHAPE_SIZE = 80;
 
+function fontFamily(ele: cytoscape.NodeSingular): string {
+  return ele.data('fontFamily') || "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+}
+
+function fontWeight(ele: cytoscape.NodeSingular): string {
+  return ele.data('fontWeight') || 'normal';
+}
+
+function fontColor(ele: cytoscape.NodeSingular): string {
+  return ele.data('fontColor') || '#1f2937';
+}
+
+function fontSize(ele: cytoscape.NodeSingular): string {
+  const s = ele.data('fontSize');
+  return typeof s === 'number' ? `${s}px` : '12px';
+}
+
+function nodeWidth(ele: cytoscape.NodeSingular): number | 'label' {
+  const w = ele.data('width');
+  return typeof w === 'number' && w > 0 ? w : 'label';
+}
+
+function nodeHeight(ele: cytoscape.NodeSingular): number | 'label' {
+  const h = ele.data('height');
+  return typeof h === 'number' && h > 0 ? h : 'label';
+}
+
 export const CYTOSCAPE_STYLES: cytoscape.StylesheetStyle[] = [
   {
     selector: 'node.layer',
@@ -14,14 +41,26 @@ export const CYTOSCAPE_STYLES: cytoscape.StylesheetStyle[] = [
       'border-opacity': 0.6,
       'border-style': (ele: cytoscape.NodeSingular) => ele.data('borderStyle') || 'solid',
       'label': 'data(label)',
-      'color': '#374151',
+      'color': (ele: cytoscape.NodeSingular) => ele.data('fontColor') || '#374151',
+      'font-size': (ele: cytoscape.NodeSingular) => {
+        const s = ele.data('fontSize');
+        return typeof s === 'number' ? `${s}px` : '14px';
+      },
+      'font-family': (ele: cytoscape.NodeSingular) => ele.data('fontFamily') || "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      'font-weight': (ele: cytoscape.NodeSingular) => ele.data('fontWeight') || 'bold',
       'text-valign': 'top',
       'text-halign': 'center',
       'shape': 'roundrectangle',
       'padding': '40px',
-      'compound-sizing-wrt-labels': 'include',
-      'font-size': '14px',
-      'font-weight': 'bold',
+      'compound-sizing-wrt-labels': 'exclude',
+      'width': (ele: cytoscape.NodeSingular) => {
+        const w = ele.data('width');
+        return typeof w === 'number' && w > 0 ? w : undefined as any;
+      },
+      'height': (ele: cytoscape.NodeSingular) => {
+        const h = ele.data('height');
+        return typeof h === 'number' && h > 0 ? h : undefined as any;
+      },
     },
   },
   {
@@ -30,24 +69,27 @@ export const CYTOSCAPE_STYLES: cytoscape.StylesheetStyle[] = [
       'background-color': (ele: cytoscape.NodeSingular) => ele.data('backgroundColor') || '#ffffff',
       'border-color': (ele: cytoscape.NodeSingular) => ele.data('borderColor') || '#6b7280',
       'border-style': (ele: cytoscape.NodeSingular) => ele.data('borderStyle') || 'solid',
+      'border-width': (ele: cytoscape.NodeSingular) => (isDrawioShape(ele.data('shape')) ? 0 : 1),
       'label': 'data(label)',
-      'color': '#1f2937',
+      'color': fontColor,
+      'font-size': fontSize,
+      'font-family': fontFamily,
+      'font-weight': (ele: cytoscape.NodeSingular) => fontWeight(ele) as any,
       'text-valign': 'center',
       'text-halign': 'center',
+      'text-wrap': 'wrap',
+      'text-overflow-wrap': 'anywhere',
+      'text-max-width': '120px',
       'shape': (ele: cytoscape.NodeSingular) => {
         const s = ele.data('shape');
         if (isDrawioShape(s)) return 'rectangle';
         if (s === 'circle') return 'ellipse';
         return s || 'roundrectangle';
       },
-      'width': (ele: cytoscape.NodeSingular) => {
-        const w = ele.data('width');
-        return typeof w === 'number' && w > 0 ? w : DEFAULT_SHAPE_SIZE;
-      },
-      'height': (ele: cytoscape.NodeSingular) => {
-        const h = ele.data('height');
-        return typeof h === 'number' && h > 0 ? h : DEFAULT_SHAPE_SIZE;
-      },
+      'width': nodeWidth,
+      'height': nodeHeight,
+      'min-width': '60px',
+      'min-height': '32px',
       'background-image': (ele: cytoscape.NodeSingular) => {
         const s = ele.data('shape');
         if (!isDrawioShape(s)) return 'none';
@@ -61,16 +103,14 @@ export const CYTOSCAPE_STYLES: cytoscape.StylesheetStyle[] = [
           ele.data('borderStyle')
         );
       },
-      'background-fit': 'contain',
+      'background-fit': 'none',
       'background-clip': 'none',
-      'border-width': (ele: cytoscape.NodeSingular) => (isDrawioShape(ele.data('shape')) ? 0 : 1),
-      'padding-left': '12px',
-      'padding-right': '12px',
+      'background-width': '100%',
+      'background-height': '100%',
+      'padding-left': '16px',
+      'padding-right': '16px',
       'padding-top': '8px',
       'padding-bottom': '8px',
-      'font-size': '13px',
-      'text-wrap': 'wrap',
-      'text-max-width': '140px',
       'transition-property': 'background-color, border-width, border-color',
       'transition-duration': 0.15,
     },
@@ -88,10 +128,17 @@ export const CYTOSCAPE_STYLES: cytoscape.StylesheetStyle[] = [
         if (s === 'circle') return 'ellipse';
         return s || 'roundrectangle';
       },
-      'color': '#1f2937',
-      'font-weight': 'bold',
-      'font-size': '12px',
-      'text-max-width': '160px',
+      'color': fontColor,
+      'font-size': fontSize,
+      'font-family': fontFamily,
+      'font-weight': (ele: cytoscape.NodeSingular) => fontWeight(ele) as any,
+      'text-wrap': 'wrap',
+      'text-overflow-wrap': 'anywhere',
+      'text-max-width': '120px',
+      'width': nodeWidth,
+      'height': nodeHeight,
+      'min-width': '60px',
+      'min-height': '32px',
       'padding-left': '14px',
       'padding-right': '14px',
       'padding-top': '10px',

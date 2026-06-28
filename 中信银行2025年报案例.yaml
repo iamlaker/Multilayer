@@ -1,0 +1,470 @@
+project: 中信银行2025年报案例
+version: '1.0'
+layers:
+  - id: layer-mqxuu96c-6
+    name: 五个领先银行层
+    description: ''
+    color: '#dbeafe'
+    x: 35.20455487100878
+    'y': 40.90919852581467
+    nodes:
+      - id: node-mqxuu96c-1
+        name: 领先的财富管理银行
+        type: indicator
+        x: 7.105427357601002e-15
+        'y': -2.842170943040401e-14
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-2
+        name: 领先的综合融资银行
+        type: indicator
+        x: 7.105427357601002e-15
+        'y': 79.99999999999997
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-3
+        name: 领先的交易结算银行
+        type: indicator
+        x: 7.105427357601002e-15
+        'y': 159.99999999999997
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-4
+        name: 领先的外汇服务银行
+        type: indicator
+        x: 7.105427357601002e-15
+        'y': 239.99999999999997
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-5
+        name: 领先的数字化银行
+        type: indicator
+        x: 7.105427357601002e-15
+        'y': 320
+        brief: ''
+        detail: ''
+        table: ''
+    edges: []
+    width: 30
+    height: 30
+  - id: layer-mqxuu96c-c
+    name: 五篇大文章层
+    description: ''
+    color: '#dcfce7'
+    x: 352.7727891523434
+    'y': 44.71591245393171
+    nodes:
+      - id: node-mqxuu96c-7
+        name: 科技金融
+        type: indicator
+        x: 0
+        'y': 0
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-8
+        name: 绿色金融
+        type: indicator
+        x: 0
+        'y': 80
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-9
+        name: 普惠金融
+        type: indicator
+        x: 0
+        'y': 160
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-a
+        name: 养老金融
+        type: indicator
+        x: 0
+        'y': 240
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-b
+        name: 数字金融
+        type: indicator
+        x: 0
+        'y': 320
+        brief: ''
+        detail: ''
+        table: ''
+    edges: []
+  - id: layer-mqxuu96c-y
+    name: 机构层
+    description: ''
+    color: '#fef3c7'
+    x: 697.8182786732332
+    'y': 39.4318249078633
+    nodes:
+      - id: node-mqxuu96c-d
+        name: 公司金融版块
+        type: indicator
+        x: 0
+        'y': -1.1368683772161603e-13
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-e
+        name: 公司金融部
+        type: indicator
+        x: 0
+        'y': 79.99999999999989
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-f
+        name: 普惠金融部
+        type: indicator
+        x: 0
+        'y': 159.9999999999999
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-g
+        name: 政府和机构客户部
+        type: indicator
+        x: 0
+        'y': 239.9999999999999
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-h
+        name: 大客户部
+        type: indicator
+        x: 0
+        'y': 319.9999999999999
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-i
+        name: 投资银行部
+        type: indicator
+        x: 0
+        'y': 399.9999999999999
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-j
+        name: 交易银行部
+        type: indicator
+        x: 0
+        'y': 479.9999999999999
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-k
+        name: 国际业务部
+        type: indicator
+        x: 0
+        'y': 559.9999999999999
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-l
+        name: 零售版块
+        type: indicator
+        x: 174.3748890202536
+        'y': -1.4882280926907754
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-m
+        name: 零售金融部
+        type: indicator
+        x: 172.2612540018264
+        'y': 77.45495439809568
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-n
+        name: 个人信贷部
+        type: indicator
+        x: 173.31807151104
+        'y': 157.45495439809568
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-o
+        name: 财富管理部
+        type: indicator
+        x: 171.20443649261267
+        'y': 240.62540692573657
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-p
+        name: 信用卡中心
+        type: indicator
+        x: 173.34845794402224
+        'y': 398.7843674062279
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-q
+        name: 私人银行部
+        type: indicator
+        x: 177.68216939262277
+        'y': 317.3536159458573
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-r
+        name: 金融市场版块
+        type: indicator
+        x: 341.2797765772939
+        'y': -1.3478373253939893
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-s
+        name: 金融市场部
+        type: indicator
+        x: 342.36320443944396
+        'y': 74.31845122600559
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-t
+        name: 资产托管部
+        type: indicator
+        x: 340.73539698726563
+        'y': 157.31966239107874
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-u
+        name: 风险管理版块
+        type: indicator
+        x: 512.9861405185841
+        'y': -1.7999161202022123
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-v
+        name: 风险管理部
+        type: indicator
+        x: 509.6357535481352
+        'y': 72.29956074905407
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-w
+        name: 授信执行部
+        type: indicator
+        x: 506.431464199223
+        'y': 156.4501985296565
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-x
+        name: 法律及资保部
+        type: indicator
+        x: 509.70880235890377
+        'y': 237.30523594788633
+        brief: ''
+        detail: ''
+        table: ''
+    edges: []
+  - id: layer-mqxuu96d-1h
+    name: 结果层
+    description: ''
+    color: '#f3e8ff'
+    x: -291.9999999999999
+    'y': 23.954569668308125
+    nodes:
+      - id: node-mqxuu96c-z
+        name: 资产负债表
+        type: indicator
+        x: -236.9999999999999
+        'y': 15.00000000000017
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-10
+        name: 总资产
+        type: indicator
+        x: -296.9999999999999
+        'y': 81.00000000000017
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-11
+        name: 各项贷款
+        type: indicator
+        x: -296.9999999999999
+        'y': 159.00000000000017
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-12
+        name: 金融投资
+        type: indicator
+        x: -298.9999999999999
+        'y': 230.00000000000017
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96c-13
+        name: 同业资产
+        type: indicator
+        x: -294.9999999999999
+        'y': 302.00000000000017
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96d-14
+        name: 总负债
+        type: indicator
+        x: -180.0000000000001
+        'y': 79.00000000000017
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96d-15
+        name: 自营存款
+        type: indicator
+        x: -183.0000000000001
+        'y': 159.00000000000017
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96d-16
+        name: 市场化负债
+        type: indicator
+        x: -181.0000000000001
+        'y': 227.00000000000017
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96d-17
+        name: 利润表
+        type: indicator
+        x: -7.196114086885416
+        'y': 20.106172229736686
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96d-18
+        name: 营业净收入
+        type: indicator
+        x: -10.28016298126488
+        'y': 80.57386256533363
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96d-19
+        name: 利息净收入
+        type: indicator
+        x: -72.98915716697974
+        'y': 141.04155290093064
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96d-1a
+        name: 非息净收入
+        type: indicator
+        x: 56.540896396955844
+        'y': 140.8562816470658
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96d-1b
+        name: 手续费及佣金净收入
+        type: indicator
+        x: 57.56891269508239
+        'y': 200.29595568453612
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96d-1c
+        name: 其他非息收入
+        type: indicator
+        x: 54.48486380070295
+        'y': 261.7916623182599
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96d-1d
+        name: 管理费用
+        type: indicator
+        x: -7.196114086885416
+        'y': 314.0352222688449
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96d-1e
+        name: 当年计提减值损失
+        type: indicator
+        x: -10.568175092136698
+        'y': 373.5687077949193
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96d-1f
+        name: 所得税
+        type: indicator
+        x: -10.568175092136698
+        'y': 437.7164451567144
+        brief: ''
+        detail: ''
+        table: ''
+      - id: node-mqxuu96d-1g
+        name: 净利润
+        type: indicator
+        x: -11.624992601350357
+        'y': 510.31872259221853
+        brief: ''
+        detail: ''
+        table: ''
+    edges: []
+crossEdges:
+  - id: crossEdge-mqxuu96d-1i
+    source: node-mqxuu96c-1
+    target: node-mqxuu96c-a
+    direction: forward
+    type: default
+    brief: 财富优势支撑养老金融
+    detail: 领先的财富管理银行为养老金融提供产品与客户基础
+    table: ''
+  - id: crossEdge-mqxuu96d-1j
+    source: node-mqxuu96c-2
+    target: node-mqxuu96c-7
+    direction: forward
+    type: default
+    brief: 综合融资服务科技产业
+    detail: 大投行、大协同生态圈为科技企业提供全生命周期融资
+    table: ''
+  - id: crossEdge-mqxuu96d-1k
+    source: node-mqxuu96c-2
+    target: node-mqxuu96c-8
+    direction: forward
+    type: default
+    brief: 综合融资服务绿色转型
+    detail: 债券承销、绿色信贷、租赁等协同支持绿色低碳
+    table: ''
+  - id: crossEdge-mqxuu96d-1l
+    source: node-mqxuu96c-3
+    target: node-mqxuu96c-9
+    direction: forward
+    type: default
+    brief: 结算平台赋能小微
+    detail: 小天元、供应链金融等平台降低小微企业融资门槛
+    table: ''
+  - id: crossEdge-mqxuu96d-1m
+    source: node-mqxuu96c-5
+    target: node-mqxuu96c-b
+    direction: forward
+    type: default
+    brief: 数字化底座
+    detail: 领先的数字化银行是数字金融的基础设施和能力来源
+    table: ''

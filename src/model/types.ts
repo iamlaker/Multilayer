@@ -12,6 +12,13 @@ export interface NodeData {
   borderStyle?: 'solid' | 'dashed' | 'dotted';
   borderColor?: string;
   backgroundColor?: string;
+  fontColor?: string;
+  fontSize?: number;
+  fontFamily?: string;
+  fontWeight?: string;
+  brief?: string;
+  detail?: string;
+  table?: string;
 }
 
 export interface EdgeData {
@@ -36,6 +43,12 @@ export interface LayerData {
   borderColor?: string;
   x?: number;
   y?: number;
+  width?: number;
+  height?: number;
+  fontColor?: string;
+  fontSize?: number;
+  fontFamily?: string;
+  fontWeight?: string;
   nodes: NodeData[];
   edges: EdgeData[];
 }

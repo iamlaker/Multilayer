@@ -1,7 +1,7 @@
 import { useRef } from 'react';
-import { Download, FileUp, FolderOpen, Grid3x3, Layers, MousePointer, Network, PenLine, PlusCircle, Redo2, Search, Share2, Undo2 } from 'lucide-react';
+import { Download, FileUp, FolderOpen, Grid3x3, Layers, MousePointer, Network, PenLine, PlusCircle, Redo2, Save, Search, Share2, Trash2, Undo2 } from 'lucide-react';
 import { useGraphStore } from '../store/graphStore';
-import { downloadYaml } from '../utils/yaml';
+import { downloadYaml, stringifyProjectYaml } from '../utils/yaml';
 import { importProjectFromFile, importLayersFromFile } from '../utils/importers/importProject';
 
 type Mode = 'select' | 'add-node' | 'add-edge';
@@ -19,20 +19,78 @@ export default function Toolbar({ mode, setMode }: ToolbarProps) {
     searchQuery,
     canUndo,
     canRedo,
+    selectedNodeId,
+    selectedEdgeId,
+    selectedLayerId,
+    selectedNodeIds,
+    selectedEdgeIds,
     toggleEditMode,
     toggleViewMode,
     addLayer,
     loadProject,
     mergeProject,
     setSearchQuery,
+    setSelectedNode,
+    setSelectedEdge,
+    setSelectedLayer,
     undo,
     redo,
+    deleteNode,
+    deleteEdge,
+    deleteLayer,
+    clearMultiSelection,
+    setBatchEditingOpen,
   } = useGraphStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importModeRef = useRef<'replace' | 'append'>('replace');
 
   const handleExport = () => {
     downloadYaml(project, `${project.project || 'project'}.yaml`);
+  };
+
+  const handleSave = async () => {
+    const filename = `${project.project || 'project'}.yaml`;
+    const text = stringifyProjectYaml(project);
+    try {
+      const resp = await fetch('/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, yaml: text }),
+      });
+      if (!resp.ok) throw new Error('保存失败');
+      const data = await resp.json();
+      alert(`已保存到 ${data.path || filename}`);
+    } catch (err) {
+      // Fallback to browser download if dev server endpoint is unavailable.
+      downloadYaml(project, filename);
+      console.warn('服务端保存失败，已改用浏览器下载', err);
+    }
+  };
+
+  const hasSelection = selectedNodeId || selectedEdgeId || selectedLayerId || selectedNodeIds.length > 0 || selectedEdgeIds.length > 0;
+  const handleDelete = () => {
+    if (selectedNodeIds.length > 0) {
+      if (confirm(`确定删除选中的 ${selectedNodeIds.length} 个指标节点？相关连线也会被删除。`)) {
+        for (const id of selectedNodeIds) deleteNode(id);
+        clearMultiSelection();
+      }
+    } else if (selectedEdgeIds.length > 0) {
+      if (confirm(`确定删除选中的 ${selectedEdgeIds.length} 条连线？`)) {
+        for (const id of selectedEdgeIds) deleteEdge(id);
+        clearMultiSelection();
+      }
+    } else if (selectedNodeId) {
+      deleteNode(selectedNodeId);
+      setSelectedNode(null);
+    } else if (selectedEdgeId) {
+      deleteEdge(selectedEdgeId);
+      setSelectedEdge(null);
+    } else if (selectedLayerId) {
+      if (confirm('确定删除图层？其中的指标和连线也会被删除。')) {
+        deleteLayer(selectedLayerId);
+        setSelectedLayer(null);
+      }
+    }
   };
 
   const triggerImport = (mode: 'replace' | 'append') => {
@@ -131,6 +189,23 @@ export default function Toolbar({ mode, setMode }: ToolbarProps) {
         <Redo2 size={16} />
       </button>
 
+      {hasSelection && (
+        <button
+          onClick={handleDelete}
+          className="flex items-center gap-1 px-3 py-1.5 rounded text-sm border bg-red-50 text-red-600 hover:bg-red-100"
+        >
+          <Trash2 size={16} /> 删除
+        </button>
+      )}
+      {selectedNodeIds.length > 1 && (
+        <button
+          onClick={() => setBatchEditingOpen(true)}
+          className="flex items-center gap-1 px-3 py-1.5 rounded text-sm border bg-blue-50 text-blue-600 hover:bg-blue-100"
+        >
+          批量编辑
+        </button>
+      )}
+
       <div className="flex-1" />
 
       <div className="flex items-center gap-2">
@@ -163,6 +238,12 @@ export default function Toolbar({ mode, setMode }: ToolbarProps) {
         className="flex items-center gap-1 px-3 py-1.5 rounded text-sm border bg-white text-gray-700 hover:bg-gray-50"
       >
         <FileUp size={16} /> 导入新文件
+      </button>
+      <button
+        onClick={handleSave}
+        className="flex items-center gap-1 px-3 py-1.5 rounded text-sm border bg-blue-600 text-white hover:bg-blue-700"
+      >
+        <Save size={16} /> 保存
       </button>
       <button
         onClick={handleExport}

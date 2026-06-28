@@ -5,6 +5,7 @@ import GraphCanvas from './components/GraphCanvas';
 import NodeEditor from './components/NodeEditor';
 import EdgeEditor from './components/EdgeEditor';
 import LayerEditor from './components/LayerEditor';
+import BatchNodeEditor from './components/BatchNodeEditor';
 import DetailPopup from './components/DetailPopup';
 
 type Mode = 'select' | 'add-node' | 'add-edge';
@@ -22,6 +23,7 @@ function App() {
       <NodeEditor />
       <EdgeEditor />
       <LayerEditor />
+      <BatchNodeEditor />
       <DetailPopup />
     </div>
   );

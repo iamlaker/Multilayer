@@ -2,16 +2,13 @@ import { create } from 'zustand';
 import cytoscape from 'cytoscape';
 import type { EdgeData, LayerData, NodeData, ProjectData, DetailPopupState } from '../model/types';
 import { generateId } from '../model/schema';
-
-const LAYER_COLORS = [
-  '#dbeafe',
-  '#dcfce7',
-  '#fef3c7',
-  '#f3e8ff',
-  '#ffe4e6',
-  '#ccfbf1',
-  '#f1f5f9',
-];
+import {
+  LAYER_COLORS,
+  LAYER_BORDER_COLORS,
+  NODE_BACKGROUND_PALETTE,
+  NODE_BORDER_PALETTE,
+  pickByIndex,
+} from '../utils/styleDefaults';
 
 const DEFAULT_PROJECT: ProjectData = {
   project: '未命名项目',
@@ -60,11 +57,15 @@ interface GraphState {
   project: ProjectData;
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
+  selectedLayerId: string | null;
+  selectedNodeIds: string[];
+  selectedEdgeIds: string[];
   hiddenLayerIds: Set<string>;
   detailPopup: DetailPopupState | null;
   editingNodeId: string | null;
   editingEdgeId: string | null;
   editingLayerId: string | null;
+  batchEditingOpen: boolean;
   isEditMode: boolean;
   viewMode: 'layered' | 'overview';
   selectedShape: string;
@@ -82,10 +83,10 @@ interface GraphActions {
   updateLayer: (id: string, patch: Partial<LayerData>) => void;
   deleteLayer: (id: string) => void;
   toggleLayerVisibility: (id: string) => void;
-  addNode: (layerId: string, x: number, y: number, shape?: string, width?: number, height?: number) => void;
+  addNode: (layerId: string, x: number, y: number, shape?: string, width?: number, height?: number) => string;
   updateNode: (id: string, patch: Partial<NodeData>) => void;
   deleteNode: (id: string) => void;
-  addEdge: (edge: Omit<EdgeData, 'id'>) => void;
+  addEdge: (edge: Omit<EdgeData, 'id'>) => string;
   updateEdge: (id: string, patch: Partial<EdgeData>) => void;
   deleteEdge: (id: string) => void;
   moveNode: (id: string, x: number, y: number) => void;
@@ -93,11 +94,17 @@ interface GraphActions {
   autoLayoutLayer: (layerId: string, algorithm?: 'cose' | 'grid' | 'breadthfirst' | 'circle') => void;
   setSelectedNode: (id: string | null) => void;
   setSelectedEdge: (id: string | null) => void;
+  setSelectedLayer: (id: string | null) => void;
+  toggleSelectedNode: (id: string) => void;
+  toggleSelectedEdge: (id: string) => void;
+  clearMultiSelection: () => void;
+  batchUpdateNodes: (patch: Partial<NodeData>) => void;
   setDetailPopup: (popup: DetailPopupState | null) => void;
   closeDetailPopup: () => void;
   setEditingNode: (id: string | null) => void;
   setEditingEdge: (id: string | null) => void;
   setEditingLayer: (id: string | null) => void;
+  setBatchEditingOpen: (open: boolean) => void;
   toggleEditMode: () => void;
   setEditMode: (value: boolean) => void;
   toggleViewMode: () => void;
@@ -143,11 +150,15 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
   project: DEFAULT_PROJECT,
   selectedNodeId: null,
   selectedEdgeId: null,
+  selectedLayerId: null,
+  selectedNodeIds: [],
+  selectedEdgeIds: [],
   hiddenLayerIds: new Set(),
   detailPopup: null,
   editingNodeId: null,
   editingEdgeId: null,
   editingLayerId: null,
+  batchEditingOpen: false,
   isEditMode: true,
   viewMode: 'layered',
   selectedShape: 'roundrectangle',
@@ -166,8 +177,12 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
       canRedo: false,
       selectedNodeId: null,
       selectedEdgeId: null,
+      selectedLayerId: null,
+      selectedNodeIds: [],
+      selectedEdgeIds: [],
       detailPopup: null,
       searchQuery: '',
+      batchEditingOpen: false,
     }),
 
   mergeProject: (project) =>
@@ -176,6 +191,7 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
       ...recordHistory({ ...state, project }),
       selectedNodeId: null,
       selectedEdgeId: null,
+      selectedLayerId: null,
       detailPopup: null,
       searchQuery: '',
     })),
@@ -191,6 +207,7 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
         canRedo: true,
         selectedNodeId: null,
         selectedEdgeId: null,
+      selectedLayerId: null,
         detailPopup: null,
       };
     }),
@@ -206,6 +223,7 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
         canRedo: nextIndex < state.history.length - 1,
         selectedNodeId: null,
         selectedEdgeId: null,
+      selectedLayerId: null,
         detailPopup: null,
       };
     }),
@@ -218,6 +236,7 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
         name: `新建图层 ${index + 1}`,
         description: '',
         color: LAYER_COLORS[index % LAYER_COLORS.length],
+        borderColor: LAYER_BORDER_COLORS[index % LAYER_BORDER_COLORS.length],
         x: 50 + index * 50,
         y: 50 + index * 50,
         nodes: [],
@@ -263,23 +282,26 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
       return { hiddenLayerIds: next };
     }),
 
-  addNode: (layerId, x, y, shape, width, height) =>
+  addNode: (layerId, x, y, shape, width, height) => {
+    let newId = '';
     set((state) => {
       const layer = findLayerById(state.project.layers, layerId);
       if (!layer) return state;
       const layerX = layer.x ?? 0;
       const layerY = layer.y ?? 0;
-      const finalWidth = width && width > 0 ? width : shape ? 80 : undefined;
-      const finalHeight = height && height > 0 ? height : shape ? 80 : undefined;
+      const colorIndex = layer.nodes.length;
+      newId = generateId('node');
       const newNode: NodeData = {
-        id: generateId('node'),
+        id: newId,
         name: '新指标',
         type: 'indicator',
         x: x - layerX,
         y: y - layerY,
         shape,
-        width: finalWidth,
-        height: finalHeight,
+        width: width && width > 0 ? width : undefined,
+        height: height && height > 0 ? height : undefined,
+        backgroundColor: pickByIndex(NODE_BACKGROUND_PALETTE, colorIndex),
+        borderColor: pickByIndex(NODE_BORDER_PALETTE, colorIndex),
       };
       const nextProject = {
         ...state.project,
@@ -288,7 +310,9 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
         ),
       };
       return { project: nextProject, ...recordHistory({ ...state, project: nextProject }) };
-    }),
+    });
+    return newId;
+  },
 
   updateNode: (id, patch) =>
     set((state) => {
@@ -318,15 +342,18 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
         ...recordHistory({ ...state, project: nextProject }),
         selectedNodeId: state.selectedNodeId === id ? null : state.selectedNodeId,
         selectedEdgeId: null,
+      selectedLayerId: null,
         detailPopup: null,
       };
     }),
 
-  addEdge: (edge) =>
+  addEdge: (edge) => {
+    let newId = '';
     set((state) => {
       const sourceLayer = findLayerByNodeId(state.project.layers, edge.source);
       const targetLayer = findLayerByNodeId(state.project.layers, edge.target);
-      const newEdge: EdgeData = { ...edge, id: generateId('edge') };
+      newId = generateId('edge');
+      const newEdge: EdgeData = { ...edge, id: newId };
       let nextProject: ProjectData;
       if (sourceLayer && targetLayer && sourceLayer.id === targetLayer.id) {
         nextProject = {
@@ -342,7 +369,9 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
         };
       }
       return { project: nextProject, ...recordHistory({ ...state, project: nextProject }) };
-    }),
+    });
+    return newId;
+  },
 
   updateEdge: (id, patch) =>
     set((state) => {
@@ -454,17 +483,48 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
       return { project: nextProject, ...recordHistory({ ...state, project: nextProject }) };
     }),
 
-  setSelectedNode: (id) => set({ selectedNodeId: id, selectedEdgeId: null }),
-  setSelectedEdge: (id) => set({ selectedEdgeId: id }),
+  setSelectedNode: (id) => set({ selectedNodeId: id, selectedEdgeId: null, selectedLayerId: null, selectedNodeIds: [], selectedEdgeIds: [], batchEditingOpen: false }),
+  setSelectedEdge: (id) => set({ selectedEdgeId: id, selectedNodeId: null, selectedLayerId: null, selectedNodeIds: [], selectedEdgeIds: [], batchEditingOpen: false }),
+  setSelectedLayer: (id) => set({ selectedLayerId: id, selectedNodeId: null, selectedEdgeId: null, selectedNodeIds: [], selectedEdgeIds: [], batchEditingOpen: false }),
+  toggleSelectedNode: (id) =>
+    set((state) => {
+      const set = new Set(state.selectedNodeIds);
+      if (set.has(id)) set.delete(id);
+      else set.add(id);
+      return { selectedNodeIds: Array.from(set), selectedNodeId: null, selectedEdgeId: null, selectedLayerId: null, selectedEdgeIds: [], batchEditingOpen: false };
+    }),
+  toggleSelectedEdge: (id) =>
+    set((state) => {
+      const set = new Set(state.selectedEdgeIds);
+      if (set.has(id)) set.delete(id);
+      else set.add(id);
+      return { selectedEdgeIds: Array.from(set), selectedEdgeId: null, selectedNodeId: null, selectedLayerId: null, selectedNodeIds: [] };
+    }),
+  clearMultiSelection: () => set({ selectedNodeIds: [], selectedEdgeIds: [], batchEditingOpen: false }),
+  batchUpdateNodes: (patch) =>
+    set((state) => {
+      const ids = new Set(state.selectedNodeIds);
+      const nextProject = {
+        ...state.project,
+        layers: state.project.layers.map((l) => ({
+          ...l,
+          nodes: l.nodes.map((n) => (ids.has(n.id) ? { ...n, ...patch } : n)),
+        })),
+      };
+      return { project: nextProject, ...recordHistory({ ...state, project: nextProject }) };
+    }),
   setDetailPopup: (popup) => set({ detailPopup: popup }),
   closeDetailPopup: () => set({ detailPopup: null }),
   setEditingNode: (id) => set({ editingNodeId: id }),
   setEditingEdge: (id) => set({ editingEdgeId: id }),
   setEditingLayer: (id) => set({ editingLayerId: id }),
+  setBatchEditingOpen: (open) => set({ batchEditingOpen: open }),
   toggleEditMode: () => set((state) => ({ isEditMode: !state.isEditMode })),
   setEditMode: (value) => set({ isEditMode: value }),
-  toggleViewMode: () => set((state) => ({ viewMode: state.viewMode === 'layered' ? 'overview' : 'layered', selectedNodeId: null, selectedEdgeId: null, detailPopup: null })),
-  setViewMode: (mode) => set({ viewMode: mode, selectedNodeId: null, selectedEdgeId: null, detailPopup: null }),
+  toggleViewMode: () => set((state) => ({ viewMode: state.viewMode === 'layered' ? 'overview' : 'layered', selectedNodeId: null, selectedEdgeId: null,
+      selectedLayerId: null, detailPopup: null })),
+  setViewMode: (mode) => set({ viewMode: mode, selectedNodeId: null, selectedEdgeId: null,
+      selectedLayerId: null, detailPopup: null }),
   setSelectedShape: (shape) => set({ selectedShape: shape }),
   setSearchQuery: (query) => set({ searchQuery: query.trim().toLowerCase() }),
 }));

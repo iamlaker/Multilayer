@@ -109,6 +109,89 @@ export default function LayerEditor() {
         </div>
         <div className="flex gap-2">
           <div className="flex-1">
+            <label className="block text-sm text-gray-600">字体颜色</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={current.fontColor || '#374151'}
+                onChange={(e) => setForm((f) => ({ ...f, fontColor: e.target.value }))}
+                className="w-8 h-8 p-0 border rounded"
+              />
+              <input
+                type="text"
+                value={current.fontColor || ''}
+                onChange={(e) => setForm((f) => ({ ...f, fontColor: e.target.value }))}
+                placeholder="默认"
+                className="flex-1 border rounded px-2 py-1 text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm text-gray-600">字号</label>
+            <input
+              type="number"
+              value={current.fontSize ?? ''}
+              onChange={(e) => setForm((f) => ({ ...f, fontSize: e.target.value ? Number(e.target.value) : undefined }))}
+              placeholder="默认 14"
+              className="w-full border rounded px-2 py-1 text-sm"
+            />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="block text-sm text-gray-600">字体</label>
+            <select
+              value={current.fontFamily || ''}
+              onChange={(e) => setForm((f) => ({ ...f, fontFamily: e.target.value || undefined }))}
+              className="w-full border rounded px-2 py-1 text-sm"
+            >
+              <option value="">默认</option>
+              <option value="system-ui">系统默认</option>
+              <option value="SimSun, serif">宋体</option>
+              <option value="Microsoft YaHei, sans-serif">微软雅黑</option>
+              <option value="PingFang SC, sans-serif">苹方</option>
+              <option value="Arial, sans-serif">Arial</option>
+              <option value="Georgia, serif">Georgia</option>
+            </select>
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm text-gray-600">字重</label>
+            <select
+              value={current.fontWeight || ''}
+              onChange={(e) => setForm((f) => ({ ...f, fontWeight: e.target.value || undefined }))}
+              className="w-full border rounded px-2 py-1 text-sm"
+            >
+              <option value="">默认</option>
+              <option value="normal">常规</option>
+              <option value="bold">加粗</option>
+              <option value="lighter">细体</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="block text-sm text-gray-600">宽度</label>
+            <input
+              type="number"
+              value={current.width ?? ''}
+              onChange={(e) => setForm((f) => ({ ...f, width: e.target.value ? Number(e.target.value) : undefined }))}
+              placeholder="自动"
+              className="w-full border rounded px-2 py-1 text-sm"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm text-gray-600">高度</label>
+            <input
+              type="number"
+              value={current.height ?? ''}
+              onChange={(e) => setForm((f) => ({ ...f, height: e.target.value ? Number(e.target.value) : undefined }))}
+              placeholder="自动"
+              className="w-full border rounded px-2 py-1 text-sm"
+            />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <div className="flex-1">
             <label className="block text-sm text-gray-600">X 坐标</label>
             <input
               type="number"

@@ -6,6 +6,7 @@ import { parseXmindFile } from './xmindImporter';
 import { parseMarkdown } from './markdownImporter';
 import { parseProcessOnFile } from './processOnImporter';
 import { validateProject } from '../../model/schema';
+import { parseProjectYaml } from '../yaml';
 
 const LAYER_COLORS = ['#dbeafe', '#dcfce7', '#fef3c7', '#f3e8ff', '#ffe4e6', '#ccfbf1', '#f1f5f9'];
 
@@ -174,6 +175,11 @@ async function parseFileToImportResult(file: File): Promise<ImportResult> {
 }
 
 export async function importProjectFromFile(file: File): Promise<ProjectData> {
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.yaml') || name.endsWith('.yml')) {
+    const text = await file.text();
+    return validateProject(parseProjectYaml(text));
+  }
   const result = await parseFileToImportResult(file);
   if (result.graphs.length === 0 && result.crossEdges.length === 0) {
     throw new Error('文件中没有可导入的图层');

@@ -15,6 +15,13 @@ export const NodeSchema = z.object({
   borderStyle: z.enum(['solid', 'dashed', 'dotted']).optional(),
   borderColor: z.string().optional(),
   backgroundColor: z.string().optional(),
+  fontColor: z.string().optional(),
+  fontSize: z.number().optional(),
+  fontFamily: z.string().optional(),
+  fontWeight: z.string().optional(),
+  brief: z.string().default(''),
+  detail: z.string().default(''),
+  table: z.string().default(''),
 });
 
 export const EdgeSchema = z.object({
@@ -39,6 +46,12 @@ export const LayerSchema = z.object({
   borderColor: z.string().optional(),
   x: z.number().optional(),
   y: z.number().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  fontColor: z.string().optional(),
+  fontSize: z.number().optional(),
+  fontFamily: z.string().optional(),
+  fontWeight: z.string().optional(),
   nodes: z.array(NodeSchema).default([]),
   edges: z.array(EdgeSchema).default([]),
 });
