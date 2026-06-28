@@ -269,6 +269,8 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
       if (!layer) return state;
       const layerX = layer.x ?? 0;
       const layerY = layer.y ?? 0;
+      const finalWidth = width && width > 0 ? width : shape ? 80 : undefined;
+      const finalHeight = height && height > 0 ? height : shape ? 80 : undefined;
       const newNode: NodeData = {
         id: generateId('node'),
         name: '新指标',
@@ -276,8 +278,8 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
         x: x - layerX,
         y: y - layerY,
         shape,
-        width,
-        height,
+        width: finalWidth,
+        height: finalHeight,
       };
       const nextProject = {
         ...state.project,

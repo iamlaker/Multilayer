@@ -74,8 +74,14 @@ export default function NodeEditor() {
               <option value="ellipse">椭圆</option>
               <option value="circle">圆形</option>
               <option value="triangle">三角形</option>
-              <option value="hexagon">六边形</option>
               <option value="diamond">菱形</option>
+              <option value="pentagon">五边形</option>
+              <option value="hexagon">六边形</option>
+              <option value="heptagon">七边形</option>
+              <option value="octagon">八边形</option>
+              <option value="star">星形</option>
+              <option value="vee">V 形</option>
+              <option value="rhomboid">平行四边形</option>
             </select>
           </div>
         </div>

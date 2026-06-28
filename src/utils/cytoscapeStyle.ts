@@ -1,4 +1,7 @@
 import cytoscape from 'cytoscape';
+import { isDrawioShape, renderDrawioShape } from './drawioShapeRenderer';
+
+const DEFAULT_SHAPE_SIZE = 80;
 
 export const CYTOSCAPE_STYLES: cytoscape.StylesheetStyle[] = [
   {
@@ -26,7 +29,6 @@ export const CYTOSCAPE_STYLES: cytoscape.StylesheetStyle[] = [
     style: {
       'background-color': (ele: cytoscape.NodeSingular) => ele.data('backgroundColor') || '#ffffff',
       'border-color': (ele: cytoscape.NodeSingular) => ele.data('borderColor') || '#6b7280',
-      'border-width': '1px',
       'border-style': (ele: cytoscape.NodeSingular) => ele.data('borderStyle') || 'solid',
       'label': 'data(label)',
       'color': '#1f2937',
@@ -34,11 +36,34 @@ export const CYTOSCAPE_STYLES: cytoscape.StylesheetStyle[] = [
       'text-halign': 'center',
       'shape': (ele: cytoscape.NodeSingular) => {
         const s = ele.data('shape');
+        if (isDrawioShape(s)) return 'rectangle';
         if (s === 'circle') return 'ellipse';
         return s || 'roundrectangle';
       },
-      'width': (ele: cytoscape.NodeSingular) => ele.data('width') || 'label',
-      'height': (ele: cytoscape.NodeSingular) => ele.data('height') || 'label',
+      'width': (ele: cytoscape.NodeSingular) => {
+        const w = ele.data('width');
+        return typeof w === 'number' && w > 0 ? w : DEFAULT_SHAPE_SIZE;
+      },
+      'height': (ele: cytoscape.NodeSingular) => {
+        const h = ele.data('height');
+        return typeof h === 'number' && h > 0 ? h : DEFAULT_SHAPE_SIZE;
+      },
+      'background-image': (ele: cytoscape.NodeSingular) => {
+        const s = ele.data('shape');
+        if (!isDrawioShape(s)) return 'none';
+        return renderDrawioShape(
+          s,
+          ele.data('width') || DEFAULT_SHAPE_SIZE,
+          ele.data('height') || DEFAULT_SHAPE_SIZE,
+          ele.data('backgroundColor') || '#ffffff',
+          ele.data('borderColor') || '#6b7280',
+          1,
+          ele.data('borderStyle')
+        );
+      },
+      'background-fit': 'contain',
+      'background-clip': 'none',
+      'border-width': (ele: cytoscape.NodeSingular) => (isDrawioShape(ele.data('shape')) ? 0 : 1),
       'padding-left': '12px',
       'padding-right': '12px',
       'padding-top': '8px',
@@ -57,6 +82,12 @@ export const CYTOSCAPE_STYLES: cytoscape.StylesheetStyle[] = [
       'background-opacity': 0.85,
       'border-color': '#ffffff',
       'border-width': '2px',
+      'background-image': 'none',
+      'shape': (ele: cytoscape.NodeSingular) => {
+        const s = ele.data('shape');
+        if (s === 'circle') return 'ellipse';
+        return s || 'roundrectangle';
+      },
       'color': '#1f2937',
       'font-weight': 'bold',
       'font-size': '12px',

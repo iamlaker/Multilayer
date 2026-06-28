@@ -32,7 +32,18 @@ function buildElements(
       });
       for (const node of layer.nodes) {
         elements.push({
-          data: { id: node.id, parent: layer.id, label: node.name, layerId: layer.id },
+          data: {
+            id: node.id,
+            parent: layer.id,
+            label: node.name,
+            layerId: layer.id,
+            shape: node.shape,
+            width: node.width,
+            height: node.height,
+            backgroundColor: node.backgroundColor,
+            borderColor: node.borderColor,
+            borderStyle: node.borderStyle,
+          },
           position: { x: (layer.x ?? 0) + node.x, y: (layer.y ?? 0) + node.y },
           classes: 'indicator',
         });
@@ -56,6 +67,12 @@ function buildElements(
             layerId: layer.id,
             layerColor: layer.color || '#cbd5e1',
             layerName: layer.name,
+            shape: node.shape,
+            width: node.width,
+            height: node.height,
+            backgroundColor: node.backgroundColor,
+            borderColor: node.borderColor,
+            borderStyle: node.borderStyle,
           },
           classes: 'indicator overview',
         });
@@ -163,9 +180,8 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
       if (!isEditModeRef.current || modeRef.current !== 'add-node') return;
       const layerId = (evt.target as cytoscape.NodeSingular).id();
       const pos = evt.position;
-      const rawShape = selectedShapeRef.current;
-      const isCircle = rawShape === 'circle';
-      addNode(layerId, pos.x, pos.y, isCircle ? 'ellipse' : rawShape, isCircle ? 80 : undefined, isCircle ? 80 : undefined);
+      const shape = selectedShapeRef.current || 'roundrectangle';
+      addNode(layerId, pos.x, pos.y, shape);
       setMode('select');
     });
 
@@ -298,13 +314,8 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
     const handleDrop = (e: DragEvent) => {
       e.preventDefault();
       if (!isEditModeRef.current || viewModeRef.current === 'overview') return;
-      const rawShape = e.dataTransfer?.getData('application/shape') || e.dataTransfer?.getData('text/plain') || selectedShapeRef.current;
-      if (!rawShape) return;
-      // Cytoscape does not have a 'circle' node shape; map it to 'ellipse' with equal width/height.
-      const isCircle = rawShape === 'circle';
-      const shape = isCircle ? 'ellipse' : rawShape;
-      const width = isCircle ? 80 : undefined;
-      const height = isCircle ? 80 : undefined;
+      const shape = e.dataTransfer?.getData('application/shape') || e.dataTransfer?.getData('text/plain') || selectedShapeRef.current;
+      if (!shape) return;
       const rect = container.getBoundingClientRect();
       const x = (e.clientX - rect.left - cy.pan().x) / cy.zoom();
       const y = (e.clientY - rect.top - cy.pan().y) / cy.zoom();
@@ -316,7 +327,7 @@ export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
         })
         .first();
       if (layerNode.length === 0) return;
-      addNode(layerNode.id(), x, y, shape, width, height);
+      addNode(layerNode.id(), x, y, shape);
     };
     container.addEventListener('dragover', handleDragOver);
     container.addEventListener('drop', handleDrop);
