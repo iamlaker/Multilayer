@@ -2,4 +2,4 @@
 $scriptDir = $PSScriptRoot
 $env:PATH = "$scriptDir\.node;$env:PATH"
 Set-Location $scriptDir
-npm run dev
+npm.cmd run dev
