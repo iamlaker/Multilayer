@@ -1,0 +1,93 @@
+project: 2D×N 知识图谱示例
+version: "1.0"
+layers:
+  - id: layer-1
+    name: 战略目标层
+    description: 公司级战略目标
+    color: "#dbeafe"
+    x: 50
+    y: 50
+    nodes:
+      - id: node-1-1
+        name: 提高客户满意度
+        type: indicator
+        x: 100
+        y: 80
+      - id: node-1-2
+        name: 降低投诉率
+        type: indicator
+        x: 100
+        y: 220
+    edges:
+      - id: edge-1-1
+        source: node-1-1
+        target: node-1-2
+        direction: forward
+        type: drives
+        brief: 满意度提升 → 投诉减少
+        detail: 客户满意度每提高 1 分，投诉率平均下降 0.8%。
+        table: |
+          | 满意度提升 | 投诉率变化 |
+          |---|---|
+          | +1 | -0.8% |
+  - id: layer-2
+    name: 运营流程层
+    description: 核心运营流程
+    color: "#dcfce7"
+    x: 500
+    y: 50
+    nodes:
+      - id: node-2-1
+        name: 订单处理速度
+        type: indicator
+        x: 100
+        y: 80
+      - id: node-2-2
+        name: 物流配送时效
+        type: indicator
+        x: 100
+        y: 220
+      - id: node-2-3
+        name: 售后服务响应
+        type: indicator
+        x: 350
+        y: 150
+    edges:
+      - id: edge-2-1
+        source: node-2-1
+        target: node-2-3
+        direction: forward
+        type: drives
+        brief: 订单快 → 售后响应快
+        detail: 订单处理自动化后，售后工单可提前分流。
+        table: ""
+      - id: edge-2-2
+        source: node-2-2
+        target: node-2-3
+        direction: forward
+        type: drives
+        brief: 物流快 → 售后压力小
+        detail: 物流时效提升减少因延迟产生的售后诉求。
+        table: ""
+crossEdges:
+  - id: cross-1
+    source: node-1-1
+    target: node-2-3
+    direction: forward
+    type: influences
+    brief: 满意度驱动售后响应
+    detail: 客户满意度越高，对售后响应速度的容忍度越低，倒逼响应速度提升。
+    table: |
+      | 满意度 | 期望响应时间 |
+      |---|---|
+      | 高 | < 2h |
+      | 中 | < 6h |
+      | 低 | < 24h |
+  - id: cross-2
+    source: node-2-3
+    target: node-1-2
+    direction: forward
+    type: influences
+    brief: 售后响应快 → 投诉率低
+    detail: 售后响应时间每缩短 50%，投诉率下降约 30%。
+    table: ""
