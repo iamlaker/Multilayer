@@ -63,6 +63,7 @@ interface GraphState {
   detailPopup: DetailPopupState | null;
   editingNodeId: string | null;
   editingEdgeId: string | null;
+  isEditMode: boolean;
 }
 
 interface GraphActions {
@@ -85,6 +86,8 @@ interface GraphActions {
   closeDetailPopup: () => void;
   setEditingNode: (id: string | null) => void;
   setEditingEdge: (id: string | null) => void;
+  toggleEditMode: () => void;
+  setEditMode: (value: boolean) => void;
 }
 
 function findLayerByNodeId(layers: LayerData[], nodeId: string): LayerData | undefined {
@@ -103,6 +106,7 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
   detailPopup: null,
   editingNodeId: null,
   editingEdgeId: null,
+  isEditMode: true,
 
   loadProject: (project) => set({ project, selectedNodeId: null, selectedEdgeId: null, detailPopup: null }),
 
@@ -289,4 +293,6 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
   closeDetailPopup: () => set({ detailPopup: null }),
   setEditingNode: (id) => set({ editingNodeId: id }),
   setEditingEdge: (id) => set({ editingEdgeId: id }),
+  toggleEditMode: () => set((state) => ({ isEditMode: !state.isEditMode })),
+  setEditMode: (value) => set({ isEditMode: value }),
 }));

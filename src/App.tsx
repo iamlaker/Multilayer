@@ -10,24 +10,13 @@ type Mode = 'select' | 'add-node' | 'add-edge';
 
 function App() {
   const [mode, setMode] = useState<Mode>('select');
-  const [edgeSource, setEdgeSource] = useState<string | null>(null);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
-      <Toolbar
-        mode={mode}
-        setMode={setMode}
-        edgeSource={edgeSource}
-        setEdgeSource={setEdgeSource}
-      />
+      <Toolbar mode={mode} setMode={setMode} />
       <div className="flex-1 flex overflow-hidden">
         <LayerSidebar />
-        <GraphCanvas
-          mode={mode}
-          setMode={setMode}
-          edgeSource={edgeSource}
-          setEdgeSource={setEdgeSource}
-        />
+        <GraphCanvas mode={mode} setMode={setMode} />
       </div>
       <NodeEditor />
       <EdgeEditor />

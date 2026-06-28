@@ -9,9 +9,10 @@ type Mode = 'select' | 'add-node' | 'add-edge';
 interface GraphCanvasProps {
   mode: Mode;
   setMode: (mode: Mode) => void;
-  edgeSource: string | null;
-  setEdgeSource: (id: string | null) => void;
 }
+
+const TEMP_TARGET_ID = 'temp-target';
+const TEMP_EDGE_ID = 'temp-edge';
 
 function buildElements(project: ProjectData, hiddenLayerIds: Set<string>) {
   const visibleLayers = project.layers.filter((l) => !hiddenLayerIds.has(l.id));
@@ -55,15 +56,17 @@ function getAllEdges(project: ProjectData): EdgeData[] {
   return project.layers.flatMap((l) => l.edges).concat(project.crossEdges);
 }
 
-export default function GraphCanvas({ mode, setMode, edgeSource, setEdgeSource }: GraphCanvasProps) {
+export default function GraphCanvas({ mode, setMode }: GraphCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
   const dragStartRef = useRef<Record<string, cytoscape.Position>>({});
+  const drawSourceRef = useRef<string | null>(null);
 
   const {
     project,
     hiddenLayerIds,
     selectedNodeId,
+    isEditMode,
     setSelectedNode,
     setSelectedEdge,
     setDetailPopup,
@@ -77,11 +80,17 @@ export default function GraphCanvas({ mode, setMode, edgeSource, setEdgeSource }
   } = useGraphStore();
 
   const modeRef = useRef(mode);
-  const edgeSourceRef = useRef(edgeSource);
+  const isEditModeRef = useRef(isEditMode);
   const projectRef = useRef(project);
   modeRef.current = mode;
-  edgeSourceRef.current = edgeSource;
+  isEditModeRef.current = isEditMode;
   projectRef.current = project;
+
+  const clearTempEdge = (cy: cytoscape.Core) => {
+    cy.getElementById(TEMP_EDGE_ID).remove();
+    cy.getElementById(TEMP_TARGET_ID).remove();
+    drawSourceRef.current = null;
+  };
 
   // Initialize Cytoscape once
   useEffect(() => {
@@ -96,23 +105,8 @@ export default function GraphCanvas({ mode, setMode, edgeSource, setEdgeSource }
     cyRef.current = cy;
 
     cy.on('tap', 'node.indicator', (evt) => {
-      const node = evt.target as cytoscape.NodeSingular;
-      const nodeId = node.id();
-
-      if (modeRef.current === 'add-edge') {
-        const src = edgeSourceRef.current;
-        if (!src) {
-          setEdgeSource(nodeId);
-          return;
-        }
-        if (src !== nodeId) {
-          addEdge({ source: src, target: nodeId, direction: 'forward', type: 'default', brief: '', detail: '', table: '' });
-        }
-        setEdgeSource(null);
-        setMode('select');
-        return;
-      }
-
+      if (drawSourceRef.current) return;
+      const nodeId = (evt.target as cytoscape.NodeSingular).id();
       if (selectedNodeId === nodeId) {
         setSelectedNode(null);
       } else {
@@ -121,16 +115,16 @@ export default function GraphCanvas({ mode, setMode, edgeSource, setEdgeSource }
     });
 
     cy.on('tap', 'node.layer', (evt) => {
-      const layerNode = evt.target as cytoscape.NodeSingular;
-      const layerId = layerNode.id();
-      if (modeRef.current === 'add-node') {
-        const pos = evt.position;
-        addNode(layerId, pos.x, pos.y);
-        setMode('select');
-      }
+      if (drawSourceRef.current) return;
+      if (!isEditModeRef.current || modeRef.current !== 'add-node') return;
+      const layerId = (evt.target as cytoscape.NodeSingular).id();
+      const pos = evt.position;
+      addNode(layerId, pos.x, pos.y);
+      setMode('select');
     });
 
     cy.on('tap', 'edge', (evt) => {
+      if (drawSourceRef.current) return;
       const edge = evt.target as cytoscape.EdgeSingular;
       const edgeId = edge.id();
       setSelectedEdge(edgeId);
@@ -144,30 +138,81 @@ export default function GraphCanvas({ mode, setMode, edgeSource, setEdgeSource }
     });
 
     cy.on('tap', (evt) => {
+      if (drawSourceRef.current) return;
       if (evt.target === cy) {
         setSelectedNode(null);
         setSelectedEdge(null);
         closeDetailPopup();
-        if (modeRef.current !== 'add-edge') {
-          setEdgeSource(null);
-        }
       }
     });
 
     cy.on('dbltap', 'node.indicator', (evt) => {
+      if (!isEditModeRef.current) return;
       setEditingNode(evt.target.id());
     });
 
     cy.on('dbltap', 'edge', (evt) => {
+      if (!isEditModeRef.current) return;
       setEditingEdge(evt.target.id());
     });
 
+    // Drag-to-connect
+    cy.on('mousedown', 'node.indicator', (evt) => {
+      if (!isEditModeRef.current || modeRef.current !== 'add-edge') return;
+      const sourceId = (evt.target as cytoscape.NodeSingular).id();
+      drawSourceRef.current = sourceId;
+      const pos = evt.position;
+      cy.add([
+        { data: { id: TEMP_TARGET_ID }, position: { ...pos }, classes: 'temp-target' },
+        {
+          data: { id: TEMP_EDGE_ID, source: sourceId, target: TEMP_TARGET_ID },
+          classes: 'temp-edge',
+        },
+      ]);
+    });
+
+    cy.on('mousemove', (evt) => {
+      if (!drawSourceRef.current) return;
+      const target = cy.getElementById(TEMP_TARGET_ID);
+      if (target.length) {
+        target.position(evt.position);
+      }
+    });
+
+    cy.on('mouseup', 'node.indicator', (evt) => {
+      if (!drawSourceRef.current) return;
+      const targetId = (evt.target as cytoscape.NodeSingular).id();
+      if (targetId !== drawSourceRef.current) {
+        addEdge({
+          source: drawSourceRef.current,
+          target: targetId,
+          direction: 'forward',
+          type: 'default',
+          brief: '',
+          detail: '',
+          table: '',
+        });
+      }
+      clearTempEdge(cy);
+      setMode('select');
+    });
+
+    cy.on('mouseup', (evt) => {
+      if (!drawSourceRef.current) return;
+      if (evt.target === cy) {
+        clearTempEdge(cy);
+        setMode('select');
+      }
+    });
+
+    // Layer / node dragging
     cy.on('grab', 'node.layer', (evt) => {
-      const node = evt.target as cytoscape.NodeSingular;
-      dragStartRef.current[node.id()] = { ...node.position() };
+      if (!isEditModeRef.current || modeRef.current !== 'select') return;
+      dragStartRef.current[evt.target.id()] = { ...evt.target.position() };
     });
 
     cy.on('dragfree', 'node.layer', (evt) => {
+      if (!isEditModeRef.current || modeRef.current !== 'select') return;
       const node = evt.target as cytoscape.NodeSingular;
       const start = dragStartRef.current[node.id()];
       if (!start) return;
@@ -180,6 +225,7 @@ export default function GraphCanvas({ mode, setMode, edgeSource, setEdgeSource }
     });
 
     cy.on('dragfree', 'node.indicator', (evt) => {
+      if (!isEditModeRef.current || modeRef.current !== 'select') return;
       const node = evt.target as cytoscape.NodeSingular;
       const pos = node.position();
       moveNode(node.id(), pos.x, pos.y);
@@ -190,6 +236,19 @@ export default function GraphCanvas({ mode, setMode, edgeSource, setEdgeSource }
       cyRef.current = null;
     };
   }, []);
+
+  // Update node / layer grabbability based on edit mode and tool mode
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+    const canDrag = isEditMode && mode === 'select';
+    cy.nodes('.indicator').forEach((n) => {
+      canDrag ? n.grabify() : n.ungrabify();
+    });
+    cy.nodes('.layer').forEach((n) => {
+      canDrag ? n.grabify() : n.ungrabify();
+    });
+  }, [isEditMode, mode]);
 
   // Rebuild elements when project or hidden layers change
   useEffect(() => {
@@ -255,10 +314,11 @@ export default function GraphCanvas({ mode, setMode, edgeSource, setEdgeSource }
     });
   }, [selectedNodeId, project, hiddenLayerIds]);
 
-  return (
-    <div
-      ref={containerRef}
-      className={`flex-1 relative bg-gray-100 ${mode === 'add-node' ? 'cursor-crosshair' : mode === 'add-edge' ? 'cursor-crosshair' : 'cursor-grab'}`}
-    />
-  );
+  const cursorClass = !isEditMode
+    ? 'cursor-grab'
+    : mode === 'add-node' || mode === 'add-edge'
+    ? 'cursor-crosshair'
+    : 'cursor-grab';
+
+  return <div ref={containerRef} className={`flex-1 relative bg-gray-100 ${cursorClass}`} />;
 }

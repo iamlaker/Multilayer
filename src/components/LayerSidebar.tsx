@@ -2,19 +2,23 @@ import { Eye, EyeOff, Plus, Trash2 } from 'lucide-react';
 import { useGraphStore } from '../store/graphStore';
 
 export default function LayerSidebar() {
-  const { project, hiddenLayerIds, addLayer, updateLayer, deleteLayer, toggleLayerVisibility } = useGraphStore();
+  const { project, hiddenLayerIds, isEditMode, addLayer, updateLayer, deleteLayer, toggleLayerVisibility } = useGraphStore();
+
+
 
   return (
     <aside className="w-64 bg-gray-50 border-r flex flex-col">
       <div className="p-3 border-b bg-white flex justify-between items-center">
         <h2 className="font-semibold text-gray-800">图层</h2>
-        <button
-          onClick={addLayer}
-          className="p-1 rounded hover:bg-gray-100 text-blue-600"
-          title="添加图层"
-        >
-          <Plus size={18} />
-        </button>
+        {isEditMode && (
+          <button
+            onClick={addLayer}
+            className="p-1 rounded hover:bg-gray-100 text-blue-600"
+            title="添加图层"
+          >
+            <Plus size={18} />
+          </button>
+        )}
       </div>
       <div className="flex-1 overflow-auto p-2 space-y-2">
         {project.layers.map((layer) => {
@@ -41,17 +45,19 @@ export default function LayerSidebar() {
                 >
                   {hidden ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
-                <button
-                  onClick={() => {
-                    if (confirm(`确定删除图层「${layer.name}」？其中的指标和连线也会被删除。`)) {
-                      deleteLayer(layer.id);
-                    }
-                  }}
-                  className="p-1 rounded hover:bg-gray-100 text-red-500"
-                  title="删除"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {isEditMode && (
+                  <button
+                    onClick={() => {
+                      if (confirm(`确定删除图层「${layer.name}」？其中的指标和连线也会被删除。`)) {
+                        deleteLayer(layer.id);
+                      }
+                    }}
+                    className="p-1 rounded hover:bg-gray-100 text-red-500"
+                    title="删除"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
               <input
                 value={layer.description}

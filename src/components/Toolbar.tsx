@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Download, FolderOpen, Layers, MousePointer, PlusCircle, Share2 } from 'lucide-react';
+import { Download, FolderOpen, Layers, MousePointer, PenLine, PlusCircle, Share2 } from 'lucide-react';
 import { useGraphStore } from '../store/graphStore';
 import { downloadYaml, readFileAsText, parseProjectYaml } from '../utils/yaml';
 
@@ -8,12 +8,10 @@ type Mode = 'select' | 'add-node' | 'add-edge';
 interface ToolbarProps {
   mode: Mode;
   setMode: (mode: Mode) => void;
-  edgeSource: string | null;
-  setEdgeSource: (id: string | null) => void;
 }
 
-export default function Toolbar({ mode, setMode, edgeSource, setEdgeSource }: ToolbarProps) {
-  const { project, addLayer, loadProject } = useGraphStore();
+export default function Toolbar({ mode, setMode }: ToolbarProps) {
+  const { project, isEditMode, toggleEditMode, addLayer, loadProject } = useGraphStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
@@ -42,10 +40,7 @@ export default function Toolbar({ mode, setMode, edgeSource, setEdgeSource }: To
     return (
       <button
         key={key}
-        onClick={() => {
-          setMode(active ? 'select' : key);
-          setEdgeSource(null);
-        }}
+        onClick={() => setMode(active ? 'select' : key)}
         className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm border ${
           active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 hover:bg-gray-50'
         }`}
@@ -59,18 +54,39 @@ export default function Toolbar({ mode, setMode, edgeSource, setEdgeSource }: To
   return (
     <header className="h-14 bg-white border-b flex items-center px-4 gap-3">
       <div className="font-bold text-gray-800 mr-4">2D×N 知识图谱</div>
-      <div className="flex gap-2">
-        {modeButton('select', '选择', <MousePointer size={16} />)}
-        {modeButton('add-node', '添加指标', <PlusCircle size={16} />)}
-        {modeButton('add-edge', '添加连线', <Share2 size={16} />)}
-      </div>
-      <div className="flex-1" />
+
       <button
-        onClick={addLayer}
-        className="flex items-center gap-1 px-3 py-1.5 rounded text-sm border bg-white text-gray-700 hover:bg-gray-50"
+        onClick={toggleEditMode}
+        className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm border ${
+          isEditMode
+            ? 'bg-amber-100 text-amber-800 border-amber-300'
+            : 'bg-white text-gray-700 hover:bg-gray-50'
+        }`}
+        title={isEditMode ? '当前为编辑模式' : '当前为预览模式'}
       >
-        <Layers size={16} /> 添加图层
+        <PenLine size={16} />
+        {isEditMode ? '编辑模式' : '预览模式'}
       </button>
+
+      {isEditMode && (
+        <>
+          <div className="w-px h-6 bg-gray-200 mx-1" />
+          {modeButton('select', '选择', <MousePointer size={16} />)}
+          {modeButton('add-node', '添加指标', <PlusCircle size={16} />)}
+          {modeButton('add-edge', '添加连线', <Share2 size={16} />)}
+        </>
+      )}
+
+      <div className="flex-1" />
+
+      {isEditMode && (
+        <button
+          onClick={addLayer}
+          className="flex items-center gap-1 px-3 py-1.5 rounded text-sm border bg-white text-gray-700 hover:bg-gray-50"
+        >
+          <Layers size={16} /> 添加图层
+        </button>
+      )}
       <button
         onClick={handleImportClick}
         className="flex items-center gap-1 px-3 py-1.5 rounded text-sm border bg-white text-gray-700 hover:bg-gray-50"
@@ -83,10 +99,8 @@ export default function Toolbar({ mode, setMode, edgeSource, setEdgeSource }: To
       >
         <Download size={16} /> 导出 YAML
       </button>
+
       <input ref={fileInputRef} type="file" accept=".yaml,.yml,.json" className="hidden" onChange={handleFileChange} />
-      {mode === 'add-edge' && edgeSource && (
-        <span className="text-xs text-blue-600">请选择终点指标</span>
-      )}
     </header>
   );
 }

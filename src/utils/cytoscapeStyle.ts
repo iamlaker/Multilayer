@@ -116,4 +116,24 @@ export const CYTOSCAPE_STYLES: cytoscape.StylesheetStyle[] = [
       'opacity': 0.08,
     },
   },
+  {
+    selector: 'node.temp-target',
+    style: {
+      'background-opacity': 0,
+      'border-width': 0,
+      'width': 1,
+      'height': 1,
+      'events': 'no',
+    },
+  },
+  {
+    selector: 'edge.temp-edge',
+    style: {
+      'line-style': 'dashed',
+      'line-color': '#6b7280',
+      'target-arrow-shape': 'triangle',
+      'target-arrow-color': '#6b7280',
+      'width': 2,
+    },
+  },
 ];
