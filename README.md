@@ -34,13 +34,24 @@ npm run dev
 npm run build
 ```
 
-## 数据格式
+## 数据格式与导入
 
-数据存储在 YAML 文件中，包含以下字段：
+项目核心数据存储在 YAML 文件中，包含以下字段：
 
 - `layers`：图层数组，每个图层包含 `id`、`name`、`nodes`、`edges` 等。
 - `nodes`：指标节点，使用全局唯一 `id`，`name` 用于展示。
 - `crossEdges`：跨图层连线数组。
+
+### 支持导入的格式
+
+| 格式 | 扩展名 | 说明 |
+|---|---|---|
+| YAML | `.yaml` / `.yml` | 本软件原生格式 |
+| JSON | `.json` | 通用 `nodes` + `edges` 结构 |
+| draw.io | `.drawio` / `.xml` | 支持多 diagram/多图层，自动解压 |
+| XMind | `.xmind` | 支持新版（content.json）和旧版（content.xml） |
+| Markdown | `.md` / `.mmd` | 支持 Mermaid 流程图和大纲式 Markdown |
+| ProcessOn | `.pos` / `.posm` | 最佳-effort JSON 解析（如有样例可继续精确适配） |
 
 详见 [AI_GENERATION_GUIDE.md](./AI_GENERATION_GUIDE.md)。
 

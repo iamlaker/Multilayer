@@ -1,7 +1,8 @@
 import { useRef } from 'react';
 import { Download, FolderOpen, Layers, MousePointer, PenLine, PlusCircle, Share2 } from 'lucide-react';
 import { useGraphStore } from '../store/graphStore';
-import { downloadYaml, readFileAsText, parseProjectYaml } from '../utils/yaml';
+import { downloadYaml } from '../utils/yaml';
+import { importProjectFromFile } from '../utils/importers/importProject';
 
 type Mode = 'select' | 'add-node' | 'add-edge';
 
@@ -26,8 +27,7 @@ export default function Toolbar({ mode, setMode }: ToolbarProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const text = await readFileAsText(file);
-      const parsed = parseProjectYaml(text);
+      const parsed = await importProjectFromFile(file);
       loadProject(parsed);
     } catch (err) {
       alert('导入失败：' + (err instanceof Error ? err.message : String(err)));
@@ -100,7 +100,7 @@ export default function Toolbar({ mode, setMode }: ToolbarProps) {
         <Download size={16} /> 导出 YAML
       </button>
 
-      <input ref={fileInputRef} type="file" accept=".yaml,.yml,.json" className="hidden" onChange={handleFileChange} />
+      <input ref={fileInputRef} type="file" accept=".yaml,.yml,.json,.drawio,.xml,.xmind,.md,.mmd,.pos,.posm" className="hidden" onChange={handleFileChange} />
     </header>
   );
 }
