@@ -9,6 +9,12 @@ export const NodeSchema = z.object({
   type: z.string().default('indicator'),
   x: z.number().default(0),
   y: z.number().default(0),
+  shape: z.string().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  borderStyle: z.enum(['solid', 'dashed', 'dotted']).optional(),
+  borderColor: z.string().optional(),
+  backgroundColor: z.string().optional(),
 });
 
 export const EdgeSchema = z.object({
@@ -20,6 +26,8 @@ export const EdgeSchema = z.object({
   brief: z.string().default(''),
   detail: z.string().default(''),
   table: z.string().default(''),
+  lineStyle: z.enum(['solid', 'dashed', 'dotted']).optional(),
+  lineColor: z.string().optional(),
 });
 
 export const LayerSchema = z.object({
@@ -27,6 +35,8 @@ export const LayerSchema = z.object({
   name: z.string().min(1, '图层名称不能为空'),
   description: z.string().default(''),
   color: z.string().optional(),
+  borderStyle: z.enum(['solid', 'dashed', 'dotted']).optional(),
+  borderColor: z.string().optional(),
   x: z.number().optional(),
   y: z.number().optional(),
   nodes: z.array(NodeSchema).default([]),

@@ -53,13 +53,103 @@ export default function NodeEditor() {
             className="w-full border rounded px-2 py-1 text-sm"
           />
         </div>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="block text-sm text-gray-600">类型</label>
+            <input
+              value={current.type}
+              onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+              className="w-full border rounded px-2 py-1 text-sm"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm text-gray-600">形状</label>
+            <select
+              value={current.shape || 'roundrectangle'}
+              onChange={(e) => setForm((f) => ({ ...f, shape: e.target.value }))}
+              className="w-full border rounded px-2 py-1 text-sm"
+            >
+              <option value="roundrectangle">圆角矩形</option>
+              <option value="rectangle">矩形</option>
+              <option value="ellipse">椭圆</option>
+              <option value="circle">圆形</option>
+              <option value="triangle">三角形</option>
+              <option value="hexagon">六边形</option>
+              <option value="diamond">菱形</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="block text-sm text-gray-600">边框样式</label>
+            <select
+              value={current.borderStyle || 'solid'}
+              onChange={(e) => setForm((f) => ({ ...f, borderStyle: e.target.value as NodeData['borderStyle'] }))}
+              className="w-full border rounded px-2 py-1 text-sm"
+            >
+              <option value="solid">实线</option>
+              <option value="dashed">虚线</option>
+              <option value="dotted">点线</option>
+            </select>
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm text-gray-600">边框颜色</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={current.borderColor || '#6b7280'}
+                onChange={(e) => setForm((f) => ({ ...f, borderColor: e.target.value }))}
+                className="w-8 h-8 p-0 border rounded"
+              />
+              <input
+                type="text"
+                value={current.borderColor || ''}
+                onChange={(e) => setForm((f) => ({ ...f, borderColor: e.target.value }))}
+                placeholder="默认"
+                className="flex-1 border rounded px-2 py-1 text-sm"
+              />
+            </div>
+          </div>
+        </div>
         <div>
-          <label className="block text-sm text-gray-600">类型</label>
-          <input
-            value={current.type}
-            onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
-            className="w-full border rounded px-2 py-1 text-sm"
-          />
+          <label className="block text-sm text-gray-600">背景颜色</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={current.backgroundColor || '#ffffff'}
+              onChange={(e) => setForm((f) => ({ ...f, backgroundColor: e.target.value }))}
+              className="w-8 h-8 p-0 border rounded"
+            />
+            <input
+              type="text"
+              value={current.backgroundColor || ''}
+              onChange={(e) => setForm((f) => ({ ...f, backgroundColor: e.target.value }))}
+              placeholder="留空则默认白色"
+              className="flex-1 border rounded px-2 py-1 text-sm"
+            />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="block text-sm text-gray-600">宽度</label>
+            <input
+              type="number"
+              value={current.width ?? ''}
+              onChange={(e) => setForm((f) => ({ ...f, width: e.target.value ? Number(e.target.value) : undefined }))}
+              placeholder="自动"
+              className="w-full border rounded px-2 py-1 text-sm"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm text-gray-600">高度</label>
+            <input
+              type="number"
+              value={current.height ?? ''}
+              onChange={(e) => setForm((f) => ({ ...f, height: e.target.value ? Number(e.target.value) : undefined }))}
+              placeholder="自动"
+              className="w-full border rounded px-2 py-1 text-sm"
+            />
+          </div>
         </div>
         <div className="flex gap-2">
           <div className="flex-1">

@@ -102,6 +102,38 @@ export default function EdgeEditor() {
             />
           </div>
         </div>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="block text-sm text-gray-600">线型</label>
+            <select
+              value={current.lineStyle || 'solid'}
+              onChange={(e) => setForm((f) => ({ ...f, lineStyle: e.target.value as EdgeData['lineStyle'] }))}
+              className="w-full border rounded px-2 py-1 text-sm"
+            >
+              <option value="solid">实线</option>
+              <option value="dashed">虚线</option>
+              <option value="dotted">点线</option>
+            </select>
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm text-gray-600">线条颜色</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={current.lineColor || '#9ca3af'}
+                onChange={(e) => setForm((f) => ({ ...f, lineColor: e.target.value }))}
+                className="w-8 h-8 p-0 border rounded"
+              />
+              <input
+                type="text"
+                value={current.lineColor || ''}
+                onChange={(e) => setForm((f) => ({ ...f, lineColor: e.target.value }))}
+                placeholder="默认"
+                className="flex-1 border rounded px-2 py-1 text-sm"
+              />
+            </div>
+          </div>
+        </div>
         <div>
           <label className="block text-sm text-gray-600">简要表述</label>
           <input

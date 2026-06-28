@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import type { ImportedGraph, ImportedNode, ImportedEdge } from './types';
+import type { ImportedGraph, ImportedNode, ImportedEdge, ImportResult } from './types';
 
 interface XmindTopic {
   id: string;
@@ -47,7 +47,7 @@ function placeTree(
   }
 }
 
-function parseJsonContent(content: string): ImportedGraph[] {
+function parseJsonContent(content: string): ImportResult {
   const sheets: XmindSheet[] = JSON.parse(content);
   const result: ImportedGraph[] = [];
   for (const sheet of sheets) {
@@ -56,10 +56,10 @@ function parseJsonContent(content: string): ImportedGraph[] {
     placeTree(sheet.rootTopic, nodes, edges, null, 0, 0);
     result.push({ name: sheet.title || '思维导图', nodes, edges });
   }
-  return result;
+  return { graphs: result, crossEdges: [] };
 }
 
-function parseXmlContent(xmlText: string): ImportedGraph[] {
+function parseXmlContent(xmlText: string): ImportResult {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlText, 'application/xml');
   const sheets = Array.from(doc.querySelectorAll('sheet'));
@@ -93,10 +93,10 @@ function parseXmlContent(xmlText: string): ImportedGraph[] {
     result.push({ name: title, nodes, edges });
   }
 
-  return result;
+  return { graphs: result, crossEdges: [] };
 }
 
-export async function parseXmindFile(file: File): Promise<ImportedGraph[]> {
+export async function parseXmindFile(file: File): Promise<ImportResult> {
   const zip = await JSZip.loadAsync(file);
   const jsonFile = zip.files['content.json'];
   const xmlFile = zip.files['content.xml'];

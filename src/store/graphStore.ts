@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import cytoscape from 'cytoscape';
 import type { EdgeData, LayerData, NodeData, ProjectData, DetailPopupState } from '../model/types';
 import { generateId } from '../model/schema';
 
@@ -63,16 +64,25 @@ interface GraphState {
   detailPopup: DetailPopupState | null;
   editingNodeId: string | null;
   editingEdgeId: string | null;
+  editingLayerId: string | null;
   isEditMode: boolean;
+  viewMode: 'layered' | 'overview';
+  selectedShape: string;
+  searchQuery: string;
+  history: ProjectData[];
+  historyIndex: number;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
 interface GraphActions {
   loadProject: (project: ProjectData) => void;
+  mergeProject: (project: ProjectData) => void;
   addLayer: () => void;
   updateLayer: (id: string, patch: Partial<LayerData>) => void;
   deleteLayer: (id: string) => void;
   toggleLayerVisibility: (id: string) => void;
-  addNode: (layerId: string, x: number, y: number) => void;
+  addNode: (layerId: string, x: number, y: number, shape?: string, width?: number, height?: number) => void;
   updateNode: (id: string, patch: Partial<NodeData>) => void;
   deleteNode: (id: string) => void;
   addEdge: (edge: Omit<EdgeData, 'id'>) => void;
@@ -80,14 +90,22 @@ interface GraphActions {
   deleteEdge: (id: string) => void;
   moveNode: (id: string, x: number, y: number) => void;
   moveLayer: (id: string, x: number, y: number) => void;
+  autoLayoutLayer: (layerId: string, algorithm?: 'cose' | 'grid' | 'breadthfirst' | 'circle') => void;
   setSelectedNode: (id: string | null) => void;
   setSelectedEdge: (id: string | null) => void;
   setDetailPopup: (popup: DetailPopupState | null) => void;
   closeDetailPopup: () => void;
   setEditingNode: (id: string | null) => void;
   setEditingEdge: (id: string | null) => void;
+  setEditingLayer: (id: string | null) => void;
   toggleEditMode: () => void;
   setEditMode: (value: boolean) => void;
+  toggleViewMode: () => void;
+  setViewMode: (mode: 'layered' | 'overview') => void;
+  setSelectedShape: (shape: string) => void;
+  setSearchQuery: (query: string) => void;
+  undo: () => void;
+  redo: () => void;
 }
 
 function findLayerByNodeId(layers: LayerData[], nodeId: string): LayerData | undefined {
@@ -98,6 +116,29 @@ function findLayerById(layers: LayerData[], id: string): LayerData | undefined {
   return layers.find((l) => l.id === id);
 }
 
+function recordHistory(
+  state: Pick<GraphState, 'project' | 'history' | 'historyIndex'>
+): Pick<GraphState, 'history' | 'historyIndex' | 'canUndo' | 'canRedo'> {
+  const nextHistory = state.history.slice(0, state.historyIndex + 1);
+  const last = nextHistory[state.historyIndex];
+  if (last && JSON.stringify(last) === JSON.stringify(state.project)) {
+    return {
+      history: state.history,
+      historyIndex: state.historyIndex,
+      canUndo: state.historyIndex > 0,
+      canRedo: state.historyIndex < state.history.length - 1,
+    };
+  }
+  nextHistory.push(state.project);
+  const nextIndex = nextHistory.length - 1;
+  return {
+    history: nextHistory,
+    historyIndex: nextIndex,
+    canUndo: nextIndex > 0,
+    canRedo: false,
+  };
+}
+
 export const useGraphStore = create<GraphState & GraphActions>((set) => ({
   project: DEFAULT_PROJECT,
   selectedNodeId: null,
@@ -106,9 +147,68 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
   detailPopup: null,
   editingNodeId: null,
   editingEdgeId: null,
+  editingLayerId: null,
   isEditMode: true,
+  viewMode: 'layered',
+  selectedShape: 'roundrectangle',
+  searchQuery: '',
+  history: [DEFAULT_PROJECT],
+  historyIndex: 0,
+  canUndo: false,
+  canRedo: false,
 
-  loadProject: (project) => set({ project, selectedNodeId: null, selectedEdgeId: null, detailPopup: null }),
+  loadProject: (project) =>
+    set({
+      project,
+      history: [project],
+      historyIndex: 0,
+      canUndo: false,
+      canRedo: false,
+      selectedNodeId: null,
+      selectedEdgeId: null,
+      detailPopup: null,
+      searchQuery: '',
+    }),
+
+  mergeProject: (project) =>
+    set((state) => ({
+      project,
+      ...recordHistory({ ...state, project }),
+      selectedNodeId: null,
+      selectedEdgeId: null,
+      detailPopup: null,
+      searchQuery: '',
+    })),
+
+  undo: () =>
+    set((state) => {
+      if (state.historyIndex <= 0) return state;
+      const nextIndex = state.historyIndex - 1;
+      return {
+        project: state.history[nextIndex],
+        historyIndex: nextIndex,
+        canUndo: nextIndex > 0,
+        canRedo: true,
+        selectedNodeId: null,
+        selectedEdgeId: null,
+        detailPopup: null,
+      };
+    }),
+
+  redo: () =>
+    set((state) => {
+      if (state.historyIndex >= state.history.length - 1) return state;
+      const nextIndex = state.historyIndex + 1;
+      return {
+        project: state.history[nextIndex],
+        historyIndex: nextIndex,
+        canUndo: true,
+        canRedo: nextIndex < state.history.length - 1,
+        selectedNodeId: null,
+        selectedEdgeId: null,
+        detailPopup: null,
+      };
+    }),
 
   addLayer: () =>
     set((state) => {
@@ -123,20 +223,22 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
         nodes: [],
         edges: [],
       };
-      return { project: { ...state.project, layers: [...state.project.layers, newLayer] } };
+      const nextProject = { ...state.project, layers: [...state.project.layers, newLayer] };
+      return { project: nextProject, ...recordHistory({ ...state, project: nextProject }) };
     }),
 
   updateLayer: (id, patch) =>
-    set((state) => ({
-      project: {
+    set((state) => {
+      const nextProject = {
         ...state.project,
         layers: state.project.layers.map((l) => (l.id === id ? { ...l, ...patch } : l)),
-      },
-    })),
+      };
+      return { project: nextProject, ...recordHistory({ ...state, project: nextProject }) };
+    }),
 
   deleteLayer: (id) =>
-    set((state) => ({
-      project: {
+    set((state) => {
+      const nextProject = {
         ...state.project,
         layers: state.project.layers.filter((l) => l.id !== id),
         crossEdges: state.project.crossEdges.filter((e) => {
@@ -145,9 +247,13 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
           );
           return !layerNodes.has(e.source) && !layerNodes.has(e.target);
         }),
-      },
-      hiddenLayerIds: new Set([...state.hiddenLayerIds].filter((hid) => hid !== id)),
-    })),
+      };
+      return {
+        project: nextProject,
+        ...recordHistory({ ...state, project: nextProject }),
+        hiddenLayerIds: new Set([...state.hiddenLayerIds].filter((hid) => hid !== id)),
+      };
+    }),
 
   toggleLayerVisibility: (id) =>
     set((state) => {
@@ -157,7 +263,7 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
       return { hiddenLayerIds: next };
     }),
 
-  addNode: (layerId, x, y) =>
+  addNode: (layerId, x, y, shape, width, height) =>
     set((state) => {
       const layer = findLayerById(state.project.layers, layerId);
       if (!layer) return state;
@@ -169,31 +275,34 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
         type: 'indicator',
         x: x - layerX,
         y: y - layerY,
+        shape,
+        width,
+        height,
       };
-      return {
-        project: {
-          ...state.project,
-          layers: state.project.layers.map((l) =>
-            l.id === layerId ? { ...l, nodes: [...l.nodes, newNode] } : l
-          ),
-        },
+      const nextProject = {
+        ...state.project,
+        layers: state.project.layers.map((l) =>
+          l.id === layerId ? { ...l, nodes: [...l.nodes, newNode] } : l
+        ),
       };
+      return { project: nextProject, ...recordHistory({ ...state, project: nextProject }) };
     }),
 
   updateNode: (id, patch) =>
-    set((state) => ({
-      project: {
+    set((state) => {
+      const nextProject = {
         ...state.project,
         layers: state.project.layers.map((l) => ({
           ...l,
           nodes: l.nodes.map((n) => (n.id === id ? { ...n, ...patch } : n)),
         })),
-      },
-    })),
+      };
+      return { project: nextProject, ...recordHistory({ ...state, project: nextProject }) };
+    }),
 
   deleteNode: (id) =>
-    set((state) => ({
-      project: {
+    set((state) => {
+      const nextProject = {
         ...state.project,
         layers: state.project.layers.map((l) => ({
           ...l,
@@ -201,60 +310,68 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
           edges: l.edges.filter((e) => e.source !== id && e.target !== id),
         })),
         crossEdges: state.project.crossEdges.filter((e) => e.source !== id && e.target !== id),
-      },
-      selectedNodeId: state.selectedNodeId === id ? null : state.selectedNodeId,
-      selectedEdgeId: null,
-      detailPopup: null,
-    })),
+      };
+      return {
+        project: nextProject,
+        ...recordHistory({ ...state, project: nextProject }),
+        selectedNodeId: state.selectedNodeId === id ? null : state.selectedNodeId,
+        selectedEdgeId: null,
+        detailPopup: null,
+      };
+    }),
 
   addEdge: (edge) =>
     set((state) => {
       const sourceLayer = findLayerByNodeId(state.project.layers, edge.source);
       const targetLayer = findLayerByNodeId(state.project.layers, edge.target);
       const newEdge: EdgeData = { ...edge, id: generateId('edge') };
+      let nextProject: ProjectData;
       if (sourceLayer && targetLayer && sourceLayer.id === targetLayer.id) {
-        return {
-          project: {
-            ...state.project,
-            layers: state.project.layers.map((l) =>
-              l.id === sourceLayer.id ? { ...l, edges: [...l.edges, newEdge] } : l
-            ),
-          },
+        nextProject = {
+          ...state.project,
+          layers: state.project.layers.map((l) =>
+            l.id === sourceLayer.id ? { ...l, edges: [...l.edges, newEdge] } : l
+          ),
         };
-      }
-      return {
-        project: {
+      } else {
+        nextProject = {
           ...state.project,
           crossEdges: [...state.project.crossEdges, newEdge],
-        },
-      };
+        };
+      }
+      return { project: nextProject, ...recordHistory({ ...state, project: nextProject }) };
     }),
 
   updateEdge: (id, patch) =>
-    set((state) => ({
-      project: {
+    set((state) => {
+      const nextProject = {
         ...state.project,
         layers: state.project.layers.map((l) => ({
           ...l,
           edges: l.edges.map((e) => (e.id === id ? { ...e, ...patch } : e)),
         })),
         crossEdges: state.project.crossEdges.map((e) => (e.id === id ? { ...e, ...patch } : e)),
-      },
-    })),
+      };
+      return { project: nextProject, ...recordHistory({ ...state, project: nextProject }) };
+    }),
 
   deleteEdge: (id) =>
-    set((state) => ({
-      project: {
+    set((state) => {
+      const nextProject = {
         ...state.project,
         layers: state.project.layers.map((l) => ({
           ...l,
           edges: l.edges.filter((e) => e.id !== id),
         })),
         crossEdges: state.project.crossEdges.filter((e) => e.id !== id),
-      },
-      selectedEdgeId: state.selectedEdgeId === id ? null : state.selectedEdgeId,
-      detailPopup: state.detailPopup?.edgeId === id ? null : state.detailPopup,
-    })),
+      };
+      return {
+        project: nextProject,
+        ...recordHistory({ ...state, project: nextProject }),
+        selectedEdgeId: state.selectedEdgeId === id ? null : state.selectedEdgeId,
+        detailPopup: state.detailPopup?.edgeId === id ? null : state.detailPopup,
+      };
+    }),
 
   moveNode: (id, x, y) =>
     set((state) => {
@@ -262,30 +379,78 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
       if (!layer) return state;
       const layerX = layer.x ?? 0;
       const layerY = layer.y ?? 0;
-      return {
-        project: {
-          ...state.project,
-          layers: state.project.layers.map((l) =>
-            l.id === layer.id
-              ? {
-                  ...l,
-                  nodes: l.nodes.map((n) =>
-                    n.id === id ? { ...n, x: x - layerX, y: y - layerY } : n
-                  ),
-                }
-              : l
-          ),
-        },
+      const nextProject = {
+        ...state.project,
+        layers: state.project.layers.map((l) =>
+          l.id === layer.id
+            ? {
+                ...l,
+                nodes: l.nodes.map((n) =>
+                  n.id === id ? { ...n, x: x - layerX, y: y - layerY } : n
+                ),
+              }
+            : l
+        ),
       };
+      return { project: nextProject, ...recordHistory({ ...state, project: nextProject }) };
     }),
 
   moveLayer: (id, x, y) =>
-    set((state) => ({
-      project: {
+    set((state) => {
+      const nextProject = {
         ...state.project,
         layers: state.project.layers.map((l) => (l.id === id ? { ...l, x, y } : l)),
-      },
-    })),
+      };
+      return { project: nextProject, ...recordHistory({ ...state, project: nextProject }) };
+    }),
+
+  autoLayoutLayer: (layerId, algorithm = 'cose') =>
+    set((state) => {
+      const layer = findLayerById(state.project.layers, layerId);
+      if (!layer || layer.nodes.length === 0) return state;
+      const cy = cytoscape({ headless: true });
+      cy.add(
+        layer.nodes.map((n) => ({
+          data: { id: n.id },
+          position: { x: n.x, y: n.y },
+        }))
+      );
+      cy.add(
+        layer.edges.map((e) => ({
+          data: { id: e.id, source: e.source, target: e.target },
+        }))
+      );
+      const layoutOptions: cytoscape.LayoutOptions = {
+        name: algorithm,
+        animate: false,
+        fit: false,
+        padding: 30,
+      } as cytoscape.LayoutOptions;
+      cy.layout(layoutOptions).run();
+      const positions: Record<string, { x: number; y: number }> = {};
+      cy.nodes().forEach((n) => {
+        positions[n.id()] = { ...n.position() };
+      });
+      const allPositions = Object.values(positions);
+      const minX = allPositions.length ? Math.min(...allPositions.map((p) => p.x)) : 0;
+      const minY = allPositions.length ? Math.min(...allPositions.map((p) => p.y)) : 0;
+      const nextProject = {
+        ...state.project,
+        layers: state.project.layers.map((l) =>
+          l.id === layerId
+            ? {
+                ...l,
+                nodes: l.nodes.map((n) => {
+                  const pos = positions[n.id];
+                  return pos ? { ...n, x: pos.x - minX, y: pos.y - minY } : n;
+                }),
+              }
+            : l
+        ),
+      };
+      cy.destroy();
+      return { project: nextProject, ...recordHistory({ ...state, project: nextProject }) };
+    }),
 
   setSelectedNode: (id) => set({ selectedNodeId: id, selectedEdgeId: null }),
   setSelectedEdge: (id) => set({ selectedEdgeId: id }),
@@ -293,6 +458,11 @@ export const useGraphStore = create<GraphState & GraphActions>((set) => ({
   closeDetailPopup: () => set({ detailPopup: null }),
   setEditingNode: (id) => set({ editingNodeId: id }),
   setEditingEdge: (id) => set({ editingEdgeId: id }),
+  setEditingLayer: (id) => set({ editingLayerId: id }),
   toggleEditMode: () => set((state) => ({ isEditMode: !state.isEditMode })),
   setEditMode: (value) => set({ isEditMode: value }),
+  toggleViewMode: () => set((state) => ({ viewMode: state.viewMode === 'layered' ? 'overview' : 'layered', selectedNodeId: null, selectedEdgeId: null, detailPopup: null })),
+  setViewMode: (mode) => set({ viewMode: mode, selectedNodeId: null, selectedEdgeId: null, detailPopup: null }),
+  setSelectedShape: (shape) => set({ selectedShape: shape }),
+  setSearchQuery: (query) => set({ searchQuery: query.trim().toLowerCase() }),
 }));

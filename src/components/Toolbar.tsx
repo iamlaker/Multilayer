@@ -1,8 +1,8 @@
 import { useRef } from 'react';
-import { Download, FolderOpen, Layers, MousePointer, PenLine, PlusCircle, Share2 } from 'lucide-react';
+import { Download, FileUp, FolderOpen, Grid3x3, Layers, MousePointer, Network, PenLine, PlusCircle, Redo2, Search, Share2, Undo2 } from 'lucide-react';
 import { useGraphStore } from '../store/graphStore';
 import { downloadYaml } from '../utils/yaml';
-import { importProjectFromFile } from '../utils/importers/importProject';
+import { importProjectFromFile, importLayersFromFile } from '../utils/importers/importProject';
 
 type Mode = 'select' | 'add-node' | 'add-edge';
 
@@ -12,14 +12,31 @@ interface ToolbarProps {
 }
 
 export default function Toolbar({ mode, setMode }: ToolbarProps) {
-  const { project, isEditMode, toggleEditMode, addLayer, loadProject } = useGraphStore();
+  const {
+    project,
+    isEditMode,
+    viewMode,
+    searchQuery,
+    canUndo,
+    canRedo,
+    toggleEditMode,
+    toggleViewMode,
+    addLayer,
+    loadProject,
+    mergeProject,
+    setSearchQuery,
+    undo,
+    redo,
+  } = useGraphStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importModeRef = useRef<'replace' | 'append'>('replace');
 
   const handleExport = () => {
     downloadYaml(project, `${project.project || 'project'}.yaml`);
   };
 
-  const handleImportClick = () => {
+  const triggerImport = (mode: 'replace' | 'append') => {
+    importModeRef.current = mode;
     fileInputRef.current?.click();
   };
 
@@ -27,8 +44,14 @@ export default function Toolbar({ mode, setMode }: ToolbarProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const parsed = await importProjectFromFile(file);
-      loadProject(parsed);
+      if (importModeRef.current === 'replace') {
+        const parsed = await importProjectFromFile(file);
+        loadProject(parsed);
+      } else {
+        const parsed = await importLayersFromFile(file, project);
+        mergeProject(parsed);
+      }
+      setMode('select');
     } catch (err) {
       alert('导入失败：' + (err instanceof Error ? err.message : String(err)));
     }
@@ -68,6 +91,15 @@ export default function Toolbar({ mode, setMode }: ToolbarProps) {
         {isEditMode ? '编辑模式' : '预览模式'}
       </button>
 
+      <button
+        onClick={toggleViewMode}
+        className="flex items-center gap-1 px-3 py-1.5 rounded text-sm border bg-white text-gray-700 hover:bg-gray-50"
+        title={viewMode === 'layered' ? '切换为连线概览' : '切换为分层视图'}
+      >
+        {viewMode === 'layered' ? <Network size={16} /> : <Grid3x3 size={16} />}
+        {viewMode === 'layered' ? '连线概览' : '分层视图'}
+      </button>
+
       {isEditMode && (
         <>
           <div className="w-px h-6 bg-gray-200 mx-1" />
@@ -77,7 +109,40 @@ export default function Toolbar({ mode, setMode }: ToolbarProps) {
         </>
       )}
 
+      <div className="w-px h-6 bg-gray-200 mx-1" />
+      <button
+        onClick={undo}
+        disabled={!canUndo}
+        className={`flex items-center gap-1 px-2 py-1.5 rounded text-sm border ${
+          canUndo ? 'bg-white text-gray-700 hover:bg-gray-50' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+        }`}
+        title="撤销 (Ctrl+Z)"
+      >
+        <Undo2 size={16} />
+      </button>
+      <button
+        onClick={redo}
+        disabled={!canRedo}
+        className={`flex items-center gap-1 px-2 py-1.5 rounded text-sm border ${
+          canRedo ? 'bg-white text-gray-700 hover:bg-gray-50' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+        }`}
+        title="重做 (Ctrl+Y)"
+      >
+        <Redo2 size={16} />
+      </button>
+
       <div className="flex-1" />
+
+      <div className="flex items-center gap-2">
+        <Search size={16} className="text-gray-400" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="搜索指标..."
+          className="w-48 px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+      </div>
 
       {isEditMode && (
         <button
@@ -88,10 +153,16 @@ export default function Toolbar({ mode, setMode }: ToolbarProps) {
         </button>
       )}
       <button
-        onClick={handleImportClick}
+        onClick={() => triggerImport('append')}
         className="flex items-center gap-1 px-3 py-1.5 rounded text-sm border bg-white text-gray-700 hover:bg-gray-50"
       >
-        <FolderOpen size={16} /> 导入 YAML
+        <FolderOpen size={16} /> 导入图层
+      </button>
+      <button
+        onClick={() => triggerImport('replace')}
+        className="flex items-center gap-1 px-3 py-1.5 rounded text-sm border bg-white text-gray-700 hover:bg-gray-50"
+      >
+        <FileUp size={16} /> 导入新文件
       </button>
       <button
         onClick={handleExport}

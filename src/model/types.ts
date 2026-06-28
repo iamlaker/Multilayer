@@ -6,6 +6,12 @@ export interface NodeData {
   type: string;
   x: number;
   y: number;
+  shape?: string;
+  width?: number;
+  height?: number;
+  borderStyle?: 'solid' | 'dashed' | 'dotted';
+  borderColor?: string;
+  backgroundColor?: string;
 }
 
 export interface EdgeData {
@@ -17,6 +23,8 @@ export interface EdgeData {
   brief: string;
   detail: string;
   table: string;
+  lineStyle?: 'solid' | 'dashed' | 'dotted';
+  lineColor?: string;
 }
 
 export interface LayerData {
@@ -24,6 +32,8 @@ export interface LayerData {
   name: string;
   description: string;
   color?: string;
+  borderStyle?: 'solid' | 'dashed' | 'dotted';
+  borderColor?: string;
   x?: number;
   y?: number;
   nodes: NodeData[];

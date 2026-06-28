@@ -6,9 +6,10 @@ export const CYTOSCAPE_STYLES: cytoscape.StylesheetStyle[] = [
     style: {
       'background-color': 'data(color)',
       'background-opacity': 0.25,
-      'border-color': 'data(color)',
+      'border-color': (ele: cytoscape.NodeSingular) => ele.data('borderColor') || ele.data('color') || '#cbd5e1',
       'border-width': '2px',
       'border-opacity': 0.6,
+      'border-style': (ele: cytoscape.NodeSingular) => ele.data('borderStyle') || 'solid',
       'label': 'data(label)',
       'color': '#374151',
       'text-valign': 'top',
@@ -23,16 +24,21 @@ export const CYTOSCAPE_STYLES: cytoscape.StylesheetStyle[] = [
   {
     selector: 'node.indicator',
     style: {
-      'background-color': '#ffffff',
-      'border-color': '#6b7280',
+      'background-color': (ele: cytoscape.NodeSingular) => ele.data('backgroundColor') || '#ffffff',
+      'border-color': (ele: cytoscape.NodeSingular) => ele.data('borderColor') || '#6b7280',
       'border-width': '1px',
+      'border-style': (ele: cytoscape.NodeSingular) => ele.data('borderStyle') || 'solid',
       'label': 'data(label)',
       'color': '#1f2937',
       'text-valign': 'center',
       'text-halign': 'center',
-      'shape': 'roundrectangle',
-      'width': 'label',
-      'height': 'label',
+      'shape': (ele: cytoscape.NodeSingular) => {
+        const s = ele.data('shape');
+        if (s === 'circle') return 'ellipse';
+        return s || 'roundrectangle';
+      },
+      'width': (ele: cytoscape.NodeSingular) => ele.data('width') || 'label',
+      'height': (ele: cytoscape.NodeSingular) => ele.data('height') || 'label',
       'padding-left': '12px',
       'padding-right': '12px',
       'padding-top': '8px',
@@ -42,6 +48,23 @@ export const CYTOSCAPE_STYLES: cytoscape.StylesheetStyle[] = [
       'text-max-width': '140px',
       'transition-property': 'background-color, border-width, border-color',
       'transition-duration': 0.15,
+    },
+  },
+  {
+    selector: 'node.indicator.overview',
+    style: {
+      'background-color': 'data(layerColor)',
+      'background-opacity': 0.85,
+      'border-color': '#ffffff',
+      'border-width': '2px',
+      'color': '#1f2937',
+      'font-weight': 'bold',
+      'font-size': '12px',
+      'text-max-width': '160px',
+      'padding-left': '14px',
+      'padding-right': '14px',
+      'padding-top': '10px',
+      'padding-bottom': '10px',
     },
   },
   {
@@ -61,8 +84,10 @@ export const CYTOSCAPE_STYLES: cytoscape.StylesheetStyle[] = [
   {
     selector: 'edge',
     style: {
-      'width': '2px',
-      'line-color': '#6b7280',
+      'width': '1px',
+      'line-color': (ele: cytoscape.EdgeSingular) => ele.data('lineColor') || '#9ca3af',
+      'line-style': (ele: cytoscape.EdgeSingular) => ele.data('lineStyle') || 'solid',
+      'opacity': 0.15,
       'curve-style': 'bezier',
       'label': '',
       'font-size': '11px',
@@ -103,6 +128,7 @@ export const CYTOSCAPE_STYLES: cytoscape.StylesheetStyle[] = [
     style: {
       'line-color': '#2563eb',
       'width': '3px',
+      'opacity': 1,
       'label': 'data(brief)',
       'color': '#1e40af',
       'target-arrow-color': '#2563eb',

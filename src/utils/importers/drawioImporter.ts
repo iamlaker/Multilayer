@@ -1,5 +1,5 @@
 import { inflate, inflateRaw } from 'pako';
-import type { ImportedGraph, ImportedNode, ImportedEdge } from './types';
+import type { ImportedGraph, ImportedNode, ImportedEdge, ImportResult } from './types';
 
 function stripHtml(html: string): string {
   const tmp = document.createElement('div');
@@ -28,7 +28,7 @@ function decompressDiagram(text: string): string {
   }
 }
 
-export function parseDrawioXml(xmlText: string): ImportedGraph[] {
+export function parseDrawioXml(xmlText: string): ImportResult {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlText, 'application/xml');
   const parserError = doc.querySelector('parsererror');
@@ -113,5 +113,5 @@ export function parseDrawioXml(xmlText: string): ImportedGraph[] {
     }
   }
 
-  return result;
+  return { graphs: result, crossEdges: [] };
 }

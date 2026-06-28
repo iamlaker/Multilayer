@@ -1,4 +1,10 @@
-import type { ImportedGraph, ImportedNode, ImportedEdge } from './types';
+import type {
+  ImportedGraph,
+  ImportedNode,
+  ImportedEdge,
+  ImportedCrossEdge,
+  ImportResult,
+} from './types';
 
 function layoutByLevels(nodes: ImportedNode[], edges: ImportedEdge[]): void {
   const nodeMap = new Map<string, ImportedNode>();
@@ -50,7 +56,36 @@ function layoutByLevels(nodes: ImportedNode[], edges: ImportedEdge[]): void {
   }
 }
 
-function parseMermaid(text: string): ImportedGraph {
+function parseMarkdownTable(
+  lines: string[],
+  startIndex: number
+): { rows: string[][]; nextIndex: number } {
+  const rows: string[][] = [];
+  let i = startIndex;
+  while (i < lines.length && !lines[i].trim()) i++;
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (!line) {
+      i++;
+      continue;
+    }
+    if (!line.startsWith('|')) break;
+    const cells = line
+      .split('|')
+      .map((c) => c.trim())
+      .filter((c) => c !== '');
+    if (cells.length > 0 && !cells.every((c) => /^[-:]+$/.test(c))) {
+      rows.push(cells);
+    }
+    i++;
+  }
+  return { rows, nextIndex: i };
+}
+
+// ------------------------------------------------------------------
+// Mermaid flowchart
+// ------------------------------------------------------------------
+function parseMermaid(text: string): ImportResult {
   const nodes: ImportedNode[] = [];
   const edges: ImportedEdge[] = [];
   const nodeMap = new Map<string, ImportedNode>();
@@ -63,8 +98,8 @@ function parseMermaid(text: string): ImportedGraph {
     }
   };
 
-  // Extract node definitions with labels, e.g. A[text], A(text), A{text}, A[/text/]
-  const nodeDefRegex = /(\b\w+\b)\s*(?:\[\s*"([^"]+)"\s*\]|\[\s*([^\[\]]+?)\s*\]|\(\s*([^()]+?)\s*\)|\{\s*([^}]+?)\s*\}|\[\/\s*([^\]\/]+?)\s*\/\])/g;
+  const nodeDefRegex =
+    /(\b\w+\b)\s*(?:\[\s*"([^"]+)"\s*\]|\[\s*([^\[\]]+?)\s*\]|\(\s*([^()]+?)\s*\)|\{\s*([^}]+?)\s*\}|\[\/\s*([^\]\/]+?)\s*\/\])/g;
   let m;
   while ((m = nodeDefRegex.exec(text)) !== null) {
     const id = m[1];
@@ -72,8 +107,8 @@ function parseMermaid(text: string): ImportedGraph {
     ensureNode(id, label.trim());
   }
 
-  // Extract edge definitions
-  const edgeRegex = /(\b\w+\b)\s*(-->|---|==>|-.->)\s*(?:\|([^|]*)\|\s*)?(\b\w+\b)/g;
+  const edgeRegex =
+    /(\b\w+\b)\s*(-->|---|==>|-.->)\s*(?:\|([^|]*)\|\s*)?(\b\w+\b)/g;
   while ((m = edgeRegex.exec(text)) !== null) {
     const source = m[1];
     const target = m[4];
@@ -84,16 +119,192 @@ function parseMermaid(text: string): ImportedGraph {
   }
 
   layoutByLevels(nodes, edges);
-  return { name: 'Mermaid 流程图', nodes, edges };
+  return { graphs: [{ name: 'Mermaid 流程图', nodes, edges }], crossEdges: [] };
 }
 
+// ------------------------------------------------------------------
+// Structured AI Markdown
+// ------------------------------------------------------------------
+interface StructuredNode {
+  id: string;
+  name: string;
+  level: number;
+  meta: {
+    brief?: string;
+    detail?: string;
+    table?: string;
+    type?: string;
+  };
+}
+
+function parseStructuredMarkdown(text: string): ImportResult | null {
+  const lines = text.split('\n');
+  const graphs: ImportedGraph[] = [];
+  const crossEdges: ImportedCrossEdge[] = [];
+
+  let currentLayer: { name: string; nodes: StructuredNode[] } | null = null;
+  let currentNode: StructuredNode | null = null;
+  let tableBuffer: string[] = [];
+  let tableOwner: StructuredNode | null = null;
+
+  const flushTable = () => {
+    if (tableOwner && tableBuffer.length) {
+      tableOwner.meta.table = tableBuffer.join('\n');
+    }
+    tableBuffer = [];
+    tableOwner = null;
+  };
+
+  const saveLayer = () => {
+    flushTable();
+    if (!currentLayer || currentLayer.nodes.length === 0) return;
+
+    const nodes: ImportedNode[] = [];
+    const edges: ImportedEdge[] = [];
+    const stack: StructuredNode[] = [];
+
+    for (const n of currentLayer.nodes) {
+      while (stack.length && stack[stack.length - 1].level >= n.level) {
+        stack.pop();
+      }
+      const parent = stack[stack.length - 1] || null;
+      nodes.push({ id: n.id, name: n.name, x: 0, y: 0 });
+      if (parent) {
+        edges.push({
+          source: parent.id,
+          target: n.id,
+          label: n.meta.brief || '',
+          detail: n.meta.detail || '',
+          table: n.meta.table || '',
+        });
+      }
+      stack.push(n);
+    }
+
+    layoutByLevels(nodes, edges);
+    graphs.push({ name: currentLayer.name, nodes, edges });
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    const line = raw.trimEnd();
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (!tableOwner) {
+        continue;
+      }
+      // keep table buffer alive across blank lines
+      continue;
+    }
+
+    // Cross-layer relation table
+    if (/^#{1,6}\s+跨层关系\s*$/.test(trimmed)) {
+      flushTable();
+      currentNode = null;
+      const { rows, nextIndex } = parseMarkdownTable(lines, i + 1);
+      i = nextIndex - 1;
+      for (const row of rows) {
+        if (row.length >= 4) {
+          crossEdges.push({
+            sourceLayer: row[0] || '',
+            sourceNode: row[1] || '',
+            targetLayer: row[2] || '',
+            targetNode: row[3] || '',
+            direction: (row[4] || 'forward').trim(),
+            type: (row[5] || 'default').trim(),
+            brief: row[6] || '',
+            detail: row[7] || '',
+            table: row[8] || '',
+          });
+        }
+      }
+      continue;
+    }
+
+    // Layer heading
+    const layerMatch = trimmed.match(/^#{1,6}\s+图层[：:]\s*(.+)$/);
+    if (layerMatch) {
+      flushTable();
+      saveLayer();
+      currentLayer = { name: layerMatch[1].trim(), nodes: [] };
+      currentNode = null;
+      continue;
+    }
+
+    if (!currentLayer) return null;
+
+    // Node heading
+    const nodeMatch =
+      trimmed.match(/^#{2,6}\s+节点[：:]\s*(.+)$/) ||
+      trimmed.match(/^#{2,6}\s+(.+)$/);
+    if (nodeMatch) {
+      flushTable();
+      const level = (trimmed.match(/^#+/) || [''])[0].length;
+      const name = nodeMatch[1].trim();
+      const node: StructuredNode = {
+        id: `md-node-${currentLayer.nodes.length}`,
+        name,
+        level,
+        meta: {},
+      };
+      currentLayer.nodes.push(node);
+      currentNode = node;
+      continue;
+    }
+
+    if (!currentNode) continue;
+
+    // Metadata bullets
+    const metaMatch = trimmed.match(
+      /^[-*+]\s*(简要表述|复杂表述|节点类型|节点备注)[：:]\s*(.*)$/
+    );
+    if (metaMatch) {
+      flushTable();
+      const key = metaMatch[1];
+      const value = metaMatch[2].trim();
+      if (key === '简要表述') currentNode.meta.brief = value;
+      if (key === '复杂表述') currentNode.meta.detail = value;
+      if (key === '节点类型') currentNode.meta.type = value;
+      continue;
+    }
+
+    // Association table
+    const tableMatch = trimmed.match(/^[-*+]\s*关联表格[：:]\s*(.*)$/);
+    if (tableMatch) {
+      flushTable();
+      tableOwner = currentNode;
+      tableBuffer = [];
+      const first = tableMatch[1].trim();
+      if (first) tableBuffer.push(first);
+      continue;
+    }
+
+    if (tableOwner && trimmed.startsWith('|')) {
+      tableBuffer.push(trimmed);
+      continue;
+    }
+
+    flushTable();
+  }
+
+
+  flushTable();
+  saveLayer();
+
+  if (graphs.length === 0 && crossEdges.length === 0) return null;
+  return { graphs, crossEdges };
+}
+
+// ------------------------------------------------------------------
+// Outline Markdown
+// ------------------------------------------------------------------
 interface OutlineItem {
   id: string;
   name: string;
   level: number;
 }
 
-function parseOutline(text: string): ImportedGraph[] {
+function parseOutline(text: string): ImportResult {
   const lines = text.split('\n');
   const items: OutlineItem[] = [];
   let counter = 0;
@@ -105,7 +316,11 @@ function parseOutline(text: string): ImportedGraph[] {
     const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
     if (headingMatch) {
       counter++;
-      items.push({ id: `item-${counter}`, name: headingMatch[2].trim(), level: headingMatch[1].length });
+      items.push({
+        id: `item-${counter}`,
+        name: headingMatch[2].trim(),
+        level: headingMatch[1].length,
+      });
       continue;
     }
 
@@ -113,14 +328,11 @@ function parseOutline(text: string): ImportedGraph[] {
     if (listMatch) {
       counter++;
       const indent = listMatch[1].length;
-      const level = Math.floor(indent / 2) + 7; // list levels start below max heading level
+      const level = Math.floor(indent / 2) + 7;
       items.push({ id: `item-${counter}`, name: listMatch[2].trim(), level });
     }
   }
 
-  if (items.length === 0) return [];
-
-  // Split into layers by top-level headings (level 1)
   const layers: ImportedGraph[] = [];
   let currentLayerItems: OutlineItem[] = [];
   let currentLayerName = '大纲';
@@ -157,12 +369,19 @@ function parseOutline(text: string): ImportedGraph[] {
   }
   flushLayer();
 
-  return layers;
+  return { graphs: layers, crossEdges: [] };
 }
 
-export function parseMarkdown(text: string): ImportedGraph[] {
+// ------------------------------------------------------------------
+// Public entry
+// ------------------------------------------------------------------
+export function parseMarkdown(text: string): ImportResult {
+  const structured = parseStructuredMarkdown(text);
+  if (structured) return structured;
+
   if (/\bgraph\s+(TD|TB|LR|RL|BT)\b/.test(text)) {
-    return [parseMermaid(text)];
+    return parseMermaid(text);
   }
+
   return parseOutline(text);
 }
