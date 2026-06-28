@@ -127,7 +127,12 @@ export default function GraphCanvas({ mode, setMode, edgeSource, setEdgeSource }
       const edgeId = edge.id();
       setSelectedEdge(edgeId);
       const rendered = evt.renderedPosition;
-      setDetailPopup({ edgeId, x: rendered.x, y: rendered.y });
+      const rect = containerRef.current?.getBoundingClientRect();
+      setDetailPopup({
+        edgeId,
+        x: rendered.x + (rect?.left ?? 0),
+        y: rendered.y + (rect?.top ?? 0),
+      });
     });
 
     cy.on('tap', (evt) => {
